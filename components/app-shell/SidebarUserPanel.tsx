@@ -13,6 +13,14 @@ type UserState = {
   avatarUrl: string | null;
 } | null;
 
+/**
+ * SidebarUserPanel — shows the current user's avatar, plan, and actions.
+ *
+ * User data is fetched from the backend /api/auth/user route so that
+ * the secret service-role key is never exposed to the browser.
+ * Auth state changes are still detected via the Supabase browser client
+ * (using the publishable key only) for real-time reactivity.
+ */
 export function SidebarUserPanel() {
   const router = useRouter();
   const locale = useLocale();
@@ -23,27 +31,35 @@ export function SidebarUserPanel() {
     setMounted(true);
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
 
-    let supabase: ReturnType<typeof import("@/lib/supabase-client").createSupabaseBrowserClient>;
     let cleanup: (() => void) | undefined;
 
-    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
-      supabase = createSupabaseBrowserClient();
-
-      async function loadUser() {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) { setUser(null); return; }
-        const plan = await fetchPlan();
-        const avatarUrl = (data.user.user_metadata?.avatar_url as string | undefined) ?? null;
-        setUser({ email: data.user.email ?? "", plan, avatarUrl });
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/user", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.user) {
+          setUser(null);
+          return;
+        }
+        setUser({
+          email: data.user.email ?? "",
+          plan: data.user.plan ?? "free",
+          avatarUrl: data.user.avatarUrl ?? null,
+        });
+      } catch {
+        setUser(null);
       }
+    }
 
-      void loadUser();
+    void loadUser();
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
-        if (!session?.user) { setUser(null); return; }
-        const plan = await fetchPlan();
-        const avatarUrl = (session.user.user_metadata?.avatar_url as string | undefined) ?? null;
-        setUser({ email: session.user.email ?? "", plan, avatarUrl });
+    // Use the Supabase browser client (publishable key only) to listen
+    // for auth state changes and trigger a re-fetch from the backend.
+    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
+      const supabase = createSupabaseBrowserClient();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        void loadUser();
       });
 
       // Refresh avatar when Settings page fires this event
@@ -88,9 +104,9 @@ export function SidebarUserPanel() {
 
   async function logout() {
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      // Route through backend API to keep secret key server-side
+      await fetch("/api/auth/logout", { method: "POST" });
+      setUser(null);
       router.push("/login");
     } catch {
       // ignore

@@ -3,8 +3,16 @@ export const runtime = "edge";
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase";
 
-// Completes the OAuth (Google) flow: exchanges the `?code=` returned by
-// Supabase for a session cookie, then redirects into the dashboard.
+/**
+ * GET /auth/callback
+ *
+ * Completes the OAuth (Google) flow: exchanges the `?code=` returned by
+ * Supabase for a session cookie, then redirects into the dashboard.
+ *
+ * This route is called by Supabase after the user authorizes the OAuth
+ * provider. The server client handles the code exchange and sets the
+ * session cookie, so the secret key is never exposed to the browser.
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
