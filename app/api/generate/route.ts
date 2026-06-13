@@ -7,7 +7,8 @@ import { moderateInput } from "@/lib/moderation";
 import { saveMockKit } from "@/lib/mock-store";
 import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from "@/lib/payment/entitlements";
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
-import { createSupabaseAdminClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
+import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
+import { isLettaConfigured } from "@/lib/letta";
 
 export async function POST(request: Request) {
   try {
@@ -30,7 +31,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: moderation.reason }, { status: 422 });
     }
 
-    const outputs = await generateKitOutputs(input);
+    // Resolve the user's Letta agent ID (if Letta is configured)
+    const lettaAgentId = await resolveLettaAgentId(userId);
+
+    const outputs = await generateKitOutputs(input, lettaAgentId ?? undefined);
     const kit: ContentKit = {
       id: crypto.randomUUID(),
       ideaText: input.ideaText,
@@ -144,4 +148,39 @@ async function persistKit(userId: string, kit: ContentKit) {
     event_name: "kit_generated",
     metadata: { kitId: kit.id, platformCount: kit.platforms.length }
   });
+}
+
+/**
+ * Resolve the Letta agent ID for a user.
+ * Checks the user_agents table first, then falls back to user_metadata.
+ * Returns null if Letta is not configured or no agent is found.
+ */
+async function resolveLettaAgentId(userId: string): Promise<string | null> {
+  if (!isLettaConfigured()) {
+    return null;
+  }
+
+  // Try user_agents table first
+  const admin = createSupabaseAdminClient();
+  if (admin) {
+    const { data: mapping } = await admin
+      .from("user_agents")
+      .select("letta_agent_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (mapping?.letta_agent_id) {
+      return mapping.letta_agent_id;
+    }
+  }
+
+  // Fallback to user_metadata
+  const supabase = await createSupabaseServerClient();
+  if (supabase) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.user_metadata?.letta_agent_id) {
+      return user.user_metadata.letta_agent_id as string;
+    }
+  }
+
+  return null;
 }
