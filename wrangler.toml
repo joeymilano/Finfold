@@ -1,0 +1,12 @@
+name = "finfold"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".vercel/output/static"
+
+[vars]
+NEXT_PUBLIC_SUPABASE_URL = "https://iuoypfsnlnetllalnfwm.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1b3lwZnNubG5ldGxsYWxuZndtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5NjQ0MDUsImV4cCI6MjA5NjU0MDQwNX0.4Psn5Q1CJBsg3I7FM1AItpgdre1Hd1yBq5iPGoUDGZo"
+NEXT_PUBLIC_APP_URL = "https://finfold.pages.dev"
+LLM_API_BASE = "https://open.bigmodel.cn/api/coding/paas/v4"
+LLM_MODEL = "glm-5.1"
+NEXT_PUBLIC_ALLOW_MOCK = "false"
