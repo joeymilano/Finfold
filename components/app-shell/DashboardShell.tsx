@@ -23,22 +23,20 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { brand } from "@/lib/brand";
 import { getStoredLocale, type Locale } from "@/lib/theme";
 
-// V1 launch: only show core nav items. Future items are listed below — set `hidden: false` to re-enable.
 const navItemDefs = [
+  { href: "/dashboard", zh: "运营态势", en: "Dashboard", descZh: "增长驾驶舱", descEn: "Command view", icon: Gauge },
   { href: "/workbench", zh: "内容生产区", en: "Workbench", descZh: "生成与编辑", descEn: "Generate", icon: WandSparkles },
   { href: "/packages", zh: "内容套件", en: "Content Kits", descZh: "历史记录", descEn: "History", icon: FileStack },
+  { href: "/agents", zh: "自动化流程", en: "Agents", descZh: "Agent 指挥中心", descEn: "Automation", icon: Bot },
+  { href: "/assets", zh: "产品资产库", en: "Assets", descZh: "素材与资产", descEn: "Media & Files", icon: Library },
+  { href: "/calendar", zh: "内容排期", en: "Calendar", descZh: "发布日历", descEn: "Publish Plan", icon: CalendarDays },
+  { href: "/guardrails", zh: "品牌规则", en: "Guardrails", descZh: "品牌与合规", descEn: "Brand Rules", icon: ShieldCheck },
   { href: "/billing", zh: "订阅与额度", en: "Billing", descZh: "计划与用量", descEn: "Plans & Usage", icon: CreditCard },
   { href: "/settings", zh: "偏好设置", en: "Settings", descZh: "账号与偏好", descEn: "Preferences", icon: Settings },
-  // ── V2+ features (hidden until ready) ─────────────────────────────────────
-  // { href: "/dashboard", zh: "运营态势", en: "Dashboard", descZh: "增长驾驶舱", descEn: "Operations", icon: Gauge, hidden: true },
-  // { href: "/agents", zh: "自动化流程", en: "Agents", descZh: "Agent 指挥中心", descEn: "Automation", icon: Bot, hidden: true },
-  // { href: "/assets", zh: "产品资产库", en: "Assets", descZh: "素材与资产", descEn: "Media & Files", icon: Library, hidden: true },
-  // { href: "/calendar", zh: "内容排期", en: "Calendar", descZh: "发布日历", descEn: "Publish Plan", icon: CalendarDays, hidden: true },
-  // { href: "/guardrails", zh: "品牌规则", en: "Guardrails", descZh: "品牌与合规", descEn: "Brand Rules", icon: ShieldCheck, hidden: true },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("zh");
+  const [locale, setLocale] = useState<Locale>("en");
 
   useEffect(() => {
     setLocale(getStoredLocale());
@@ -58,6 +56,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg text-fg">
+      <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_8%,rgb(var(--brand)/0.18),transparent_28%),radial-gradient(circle_at_86%_4%,rgb(var(--accent)/0.14),transparent_24%),linear-gradient(180deg,rgb(var(--surface-2)/0.34),transparent_42%)]" />
       {/* Mobile fixed top header */}
       <MobileHeader />
 
@@ -66,11 +65,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <div className="mx-auto max-w-[1680px] lg:grid lg:grid-cols-[280px_1fr]">
         {/* Sidebar — desktop only */}
-        <aside className="hidden flex-col border-r border-hairline bg-surface lg:flex lg:min-h-screen">
+        <aside className="hidden flex-col border-r border-hairline bg-surface/88 backdrop-blur-xl lg:flex lg:min-h-screen">
           {/* Logo + toggles */}
           <div className="flex items-center justify-between gap-2 px-4 py-4">
             <Link href="/workbench" className="group flex items-center gap-3 rounded-lg px-2 py-2">
-              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-brand shadow-glow-brand">
+              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-md bg-brand shadow-glow-brand">
                 <FishLogo variant="app-icon" className="h-11 w-11 object-cover" />
               </span>
               <span className="leading-none">
@@ -88,7 +87,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <SidebarUserPanel />
 
           {/* Nav links */}
-          <nav className="mt-5 grid gap-1 px-4">
+          <nav className="mt-5 grid gap-1.5 px-4">
             {navItems.map((item) => (
               <NavLink key={item.href} {...item} />
             ))}

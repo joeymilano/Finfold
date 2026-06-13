@@ -7,19 +7,19 @@ import { createSupabaseAdminClient, createSupabaseServerClient, hasSupabaseConfi
 
 export async function POST() {
   if (!hasSupabaseConfig()) {
-    return NextResponse.json({ authenticated: false, plan: "trial", canUseOutputs: false, canAnalyze: false, trialAvailable: true, monthlyLimit: 0, used: 0 });
+    return NextResponse.json({ authenticated: false, plan: "showcase", canUseOutputs: true, canAnalyze: true, trialAvailable: true, monthlyLimit: 50, used: 0 });
   }
 
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = supabase ? await supabase.auth.getUser() : { data: { user: null } };
 
   if (!user) {
-    return NextResponse.json({ authenticated: false, plan: "trial", canUseOutputs: false, canAnalyze: false, trialAvailable: true, monthlyLimit: 0, used: 0 });
+    return NextResponse.json({ authenticated: false, plan: "showcase", canUseOutputs: true, canAnalyze: true, trialAvailable: true, monthlyLimit: 50, used: 0 });
   }
 
   const admin = createSupabaseAdminClient();
   if (!admin) {
-    return NextResponse.json({ authenticated: true, plan: "free", canUseOutputs: false, canAnalyze: false, trialAvailable: false, monthlyLimit: 5, used: 0 });
+    return NextResponse.json({ authenticated: true, plan: "free", canUseOutputs: true, canAnalyze: true, trialAvailable: false, monthlyLimit: 5, used: 0 });
   }
 
   const monthStart = new Date();
@@ -51,8 +51,8 @@ export async function POST() {
   return NextResponse.json({
     authenticated: true,
     plan: paid ? plan : "free",
-    canUseOutputs: paid || usedCount < PLAN_MONTHLY_LIMITS.free,
-    canAnalyze: paid,
+    canUseOutputs: true,
+    canAnalyze: true,
     trialAvailable: false,
     monthlyLimit,
     used: usedCount,

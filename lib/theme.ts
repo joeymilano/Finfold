@@ -1,12 +1,12 @@
 export type Theme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "finfold-theme";
-export const DEFAULT_THEME: Theme = "light";
+export const DEFAULT_THEME: Theme = "dark";
 
 // ── Locale (global, localStorage-backed) ────────────────────
 export type Locale = "zh" | "en";
 export const LOCALE_STORAGE_KEY = "finfold-locale";
-export const DEFAULT_LOCALE: Locale = "zh";
+export const DEFAULT_LOCALE: Locale = "en";
 
 export function getStoredLocale(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
@@ -30,7 +30,7 @@ export function applyLocale(locale: Locale): void {
  * Inline script injected in <head> before hydration so the saved theme is
  * applied to <html data-theme> synchronously — prevents a light→dark flash.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export function getStoredTheme(): Theme {
   if (typeof window === "undefined") {

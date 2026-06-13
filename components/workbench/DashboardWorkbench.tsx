@@ -16,16 +16,16 @@ import { PerformancePanel } from "@/components/workbench/PerformancePanel";
 import { PersonaSelector } from "@/components/workbench/PersonaSelector";
 import { QualityScorePanel } from "@/components/workbench/QualityScorePanel";
 import { PlatformSelector } from "@/components/workbench/PlatformSelector";
-import { UpgradeGate } from "@/components/workbench/UpgradeGate";
 import type { ContentKit, KitOutput, MediaAsset } from "@/lib/content-schema";
 import type { GoalId } from "@/lib/goals";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
+import { getStoredLocale } from "@/lib/theme";
 import type { PersonaId } from "@/lib/personas";
 import type { PlatformId } from "@/lib/platforms";
 import { getGenerateDisabledReason } from "@/lib/workbench-gating";
 
 const starterIdea =
-  "Launch OS 是一套面向产品营销团队的 Cross-platform Content OS。它把一个产品资产重组为小红书、抖音、视频号、B站、LinkedIn、Instagram、TikTok 等平台原生增长资产，并通过品牌规则、审核状态和排期协作把内容投入发布流程。";
+  "Finfold is an AI content operations workspace for lean product teams. It turns one launch note, product update, customer insight, or founder memo into platform-native content kits for social, community, newsletter, launch, and search channels, with brand guardrails, quality scoring, scheduling, and performance feedback built in.";
 
 const defaultPlatforms: PlatformId[] = [
   "wechat",
@@ -36,6 +36,91 @@ const defaultPlatforms: PlatformId[] = [
   "reddit",
   "product-hunt"
 ];
+
+const showcaseOutputs: KitOutput[] = [
+  {
+    platform: "x",
+    title: "One launch note should not become seven manual rewrites",
+    body: "Most small teams do not have a content problem. They have a translation problem.\n\nA product update needs one version for builders, another for buyers, another for communities, another for search, and another for launch day.\n\nFinfold turns one source signal into channel-native growth assets, then keeps the strategy, CTA, guardrails, and next iteration connected.",
+    cta: "Try the workflow with one real product update and compare the output across channels.",
+    notes: "Keep the first two lines sharp. Avoid broad AI-tool claims; lead with the operating pain.",
+    strategy: "Use X for founder narrative, sharp contrast, and public iteration. The hook frames Finfold as an operating workflow, not a generic writing assistant.",
+    locked: false,
+    publishStatus: "draft"
+  },
+  {
+    platform: "linkedin",
+    title: "The hidden content tax on lean product teams",
+    body: "Every launch creates a quiet operations tax: turn one product update into a LinkedIn post, a founder note, a Reddit-safe discussion, a Product Hunt story, a newsletter angle, and follow-up snippets.\n\nFinfold compresses that work into one content operations surface. The source asset stays central, while each channel receives its own structure, tone, CTA, and review notes.\n\nThat matters because growth teams do not just need more copy. They need a repeatable system.",
+    cta: "Use Finfold to turn your next product note into a complete launch kit.",
+    notes: "Best used with concrete product proof, customer quotes, or release metrics.",
+    strategy: "LinkedIn should sound operational and credible. This version sells the system-level cost and the business reason to care.",
+    locked: false,
+    publishStatus: "draft"
+  },
+  {
+    platform: "reddit",
+    title: "How do you adapt one product update for multiple communities without sounding spammy?",
+    body: "I have been testing a workflow for turning one launch note into different community-safe formats.\n\nThe hard part is not summarizing the product. The hard part is changing the framing: one community wants the technical tradeoff, another wants the use case, another wants the founder lesson, and another wants a very direct launch story.\n\nThe useful pattern so far: keep one source brief, then adapt the hook, proof, caveats, and CTA separately for each channel.",
+    cta: "Curious how other founders handle this without rewriting everything manually.",
+    notes: "Avoid product links in the opening post. Ask for workflow feedback first.",
+    strategy: "Reddit needs humility and discussion. This version makes the product insight useful before it asks for attention.",
+    locked: false,
+    publishStatus: "draft"
+  },
+  {
+    platform: "product-hunt",
+    title: "Finfold — turn one product signal into a launch-ready content kit",
+    body: "Finfold helps lean teams convert one product update, founder memo, or customer insight into platform-native content for launch and growth channels.\n\nIt includes content generation, brand guardrails, quality scoring, scheduling, and a performance loop so the next kit improves from real signals.",
+    cta: "Launch with a complete content kit instead of a blank posting calendar.",
+    notes: "Pair this with a short demo video and three gallery images showing Workbench, Guardrails, and Performance Loop.",
+    strategy: "Product Hunt copy should be concrete and scannable: what it is, who it is for, and why it helps launch day.",
+    locked: false,
+    publishStatus: "planned"
+  },
+  {
+    platform: "wechat",
+    title: "把一次产品更新变成完整增长资产",
+    body: "小团队真正缺的不是一篇文案，而是一套可以反复使用的内容生产流程。\n\n一次产品更新，往往要被改写成创始人观点、社区讨论、发布页故事、客户教育、短内容钩子和后续复盘。Finfold 把源素材、品牌规则、平台语气、CTA 和数据回流放在同一个工作台里，让内容不再是一次性消耗品。",
+    cta: "从下一次产品更新开始，用一份源素材生成完整内容包。",
+    notes: "适合公众号长文开头，后续可加入真实截图、用户案例和版本更新数据。",
+    strategy: "公众号版本强调方法论和信任建设，让读者理解 Finfold 解决的是内容运营流程问题。",
+    locked: false,
+    publishStatus: "draft"
+  },
+  {
+    platform: "xiaohongshu",
+    title: "一个更新写7遍太痛了",
+    body: "做产品最耗人的不是写第一版。\n\n而是同一个更新要改成不同平台都能看的样子：小红书要痛点和收藏感，X 要观点，LinkedIn 要专业，Reddit 不能像广告，Product Hunt 又要很快讲清楚。\n\nFinfold 的思路是：先保留一份源素材，再按平台重新折叠成不同内容资产。",
+    cta: "如果你也在反复改发布文案，可以试试这个工作流。",
+    notes: "标题要更口语，正文多换行，结尾引导收藏或评论。",
+    strategy: "小红书版本强调真实痛点和轻量收藏价值，不用夸张卖点。",
+    locked: false,
+    publishStatus: "draft"
+  },
+  {
+    platform: "moments",
+    title: "Finfold launch note",
+    body: "最近在把 Finfold 做成一个内容运营工作台。\n\n它解决的是一个很具体的问题：产品团队写完一次更新后，不想再手动改七八个平台的版本。\n\n现在可以从一份源素材直接生成平台内容包，还能看品牌规则、质量评分和下一轮数据回流。",
+    cta: "有做产品发布或内容增长的朋友，欢迎帮我看一眼。",
+    notes: "朋友圈语气要像真实进展分享，不要像正式广告。",
+    strategy: "朋友圈版本保留创始人语气，适合熟人网络获得反馈。",
+    locked: false,
+    publishStatus: "draft"
+  }
+];
+
+const showcaseKit: ContentKit = {
+  id: "showcase-kit",
+  ideaText: starterIdea,
+  goal: "lead-gen",
+  persona: "ai-saas",
+  platforms: defaultPlatforms,
+  mediaAssets: [],
+  outputs: showcaseOutputs,
+  status: "saved",
+  createdAt: "2026-06-13T00:00:00.000Z"
+};
 
 type Allowance = {
   used: number;
@@ -54,12 +139,11 @@ type Entitlement = {
 };
 
 export function DashboardWorkbench() {
-  const [locale, setLocale] = useState<Locale>("zh");
+  const [locale, setLocale] = useState<Locale>("en");
   // sync from global LocaleToggle
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("finfold-locale");
-      if (stored === "zh" || stored === "en") setLocale(stored);
+      setLocale(getStoredLocale());
     }
     function onLocaleChange(e: Event) {
       setLocale((e as CustomEvent<Locale>).detail);
@@ -72,36 +156,34 @@ export function DashboardWorkbench() {
   const [persona, setPersona] = useState<PersonaId>("ai-saas");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformId[]>(defaultPlatforms);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
-  const [outputs, setOutputs] = useState<KitOutput[]>([]);
-  const [kits, setKits] = useState<ContentKit[]>([]);
-  const [activeKitId, setActiveKitId] = useState<string | null>(null);
-  const [allowance, setAllowance] = useState<Allowance>({ used: 0, limit: 1, plan: "trial" });
+  const [outputs, setOutputs] = useState<KitOutput[]>(showcaseOutputs);
+  const [kits, setKits] = useState<ContentKit[]>([showcaseKit]);
+  const [activeKitId, setActiveKitId] = useState<string | null>("showcase-kit");
+  const [allowance, setAllowance] = useState<Allowance>({ used: 0, limit: 50, plan: "showcase" });
   const [entitlement, setEntitlement] = useState<Entitlement>({
     authenticated: false,
-    plan: "trial",
-    canUseOutputs: false,
-    canAnalyze: false,
+    plan: "showcase",
+    canUseOutputs: true,
+    canAnalyze: true,
     trialAvailable: true
   });
-  const [trialUsed, setTrialUsed] = useState(false);
-  const [upgradeReason, setUpgradeReason] = useState<"copy" | "export" | "save" | "analyze" | "iterate" | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadKits = useCallback(async () => {
     const entitlementResponse = await fetch("/api/entitlements/check", { method: "POST", cache: "no-store" });
     const entitlementData = (await entitlementResponse.json()) as Entitlement;
-    setEntitlement(entitlementData);
+    setEntitlement({ ...entitlementData, canUseOutputs: true, canAnalyze: true });
     setAllowance({ used: entitlementData.used ?? 0, limit: entitlementData.monthlyLimit ?? 1, plan: entitlementData.plan });
 
     if (!entitlementData.authenticated) {
-      setKits([]);
+      setKits([showcaseKit]);
       return;
     }
 
     const response = await fetch("/api/kits", { cache: "no-store" });
     const data = (await response.json()) as { kits?: ContentKit[] };
-    setKits(data.kits ?? []);
+    setKits([showcaseKit, ...(data.kits ?? []).filter((kit) => kit.id !== showcaseKit.id)]);
   }, []);
 
   useEffect(() => {
@@ -155,7 +237,7 @@ export function DashboardWorkbench() {
         }
       }
 
-      const trialMode = !entitlement.authenticated && !trialUsed;
+      const trialMode = !entitlement.authenticated;
       const response = await fetch(trialMode ? "/api/trial/generate" : "/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -179,15 +261,14 @@ export function DashboardWorkbench() {
       setOutputs(data.kit.outputs);
       addToast("success", locale === "en" ? "Growth kit generated!" : "增长资产包已生成！");
       if (trialMode) {
-        setTrialUsed(true);
-        setEntitlement((current) => ({ ...current, trialAvailable: false, canUseOutputs: false }));
+        setEntitlement((current) => ({ ...current, trialAvailable: true, canUseOutputs: true, canAnalyze: true }));
       }
       setActiveKitId(data.kit.id);
       setKits((current) => [data.kit!, ...current.filter((kit) => kit.id !== data.kit!.id)]);
       if (data.allowance) {
         setAllowance(data.allowance);
       } else if (trialMode) {
-        setAllowance({ used: 1, limit: 1, plan: "trial" });
+        setAllowance((current) => ({ used: current.used + 1, limit: 50, plan: "showcase" }));
       }
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Growth asset package could not be generated.";
@@ -198,13 +279,13 @@ export function DashboardWorkbench() {
     }
   }
 
-  const canGenerate = ideaText.trim().length >= 20 && selectedPlatforms.length > 0 && !isLoading && (entitlement.authenticated || !trialUsed);
+  const canGenerate = ideaText.trim().length >= 20 && selectedPlatforms.length > 0 && !isLoading;
   const generateDisabledReason = getGenerateDisabledReason({
     ideaText,
     selectedPlatformCount: selectedPlatforms.length,
     isLoading,
     authenticated: entitlement.authenticated,
-    trialUsed,
+    trialUsed: false,
     locale
   });
   const currentKit: ContentKit | null = outputs.length > 0
@@ -226,25 +307,24 @@ export function DashboardWorkbench() {
 
   return (
     <div className="grid gap-6 pb-10">
-      <UpgradeGate open={upgradeReason !== null} locale={locale} reason={upgradeReason ?? "copy"} onClose={() => setUpgradeReason(null)} authenticated={entitlement.authenticated} />
-
-      <section className="rounded-lg border border-hairline bg-surface p-5 shadow-panel md:p-6">
+      <section className="relative isolate overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
+        <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_20%,rgb(var(--brand)/0.18),transparent_30%),linear-gradient(135deg,rgb(var(--fg)/0.04),transparent_48%)]" />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-sm font-semibold text-fg-muted">Workbench</p>
-            <h1 className="mt-2 text-3xl font-semibold leading-tight text-fg md:text-4xl">
+            <p className="eyebrow">Finfold Workbench</p>
+            <h1 className="mt-3 max-w-4xl text-4xl font-black leading-[0.95] text-fg md:text-6xl">
               {locale === "en" ? "Generate platform-native growth kits from your assets" : "从产品资产生成平台原生增长资产包"}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-fg-muted">
+            <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-fg-muted md:text-base">
               {locale === "en"
-                ? "This is your production hub: select assets, add media, set goals, choose platforms, generate content, review for brand compliance, and submit."
-                : "这里专门负责生产：选择产品资产、补充素材、设定增长目标、选择平台、生成内容、质检并送入审核。"}
+                ? "A live command surface for content operations: product assets, media context, platform-native copy, quality scoring, scheduling, guardrails, and performance loops are all open for review."
+                : "完整开放的内容运营指挥台：产品资产、素材上下文、平台原生内容、质量评分、排期、品牌规则和数据回流都可以直接查看。"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2 font-semibold text-fg-muted">
               <ShieldCheck className="h-4 w-4 text-brand-strong dark:text-brand" />
-              {entitlement.authenticated ? entitlement.plan : "Trial"}
+              {entitlement.authenticated ? entitlement.plan : "Showcase"}
             </span>
             <Link href="/packages" className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg">
               {locale === "en" ? "View Kits" : "查看套件"}
@@ -253,8 +333,8 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(340px,0.9fr)_minmax(360px,0.95fr)_minmax(460px,1.25fr)]">
-        <div className="grid content-start gap-4">
+      <section className="grid gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(320px,0.9fr)_minmax(340px,0.95fr)_minmax(460px,1.25fr)]">
+        <div className="grid content-start gap-4 xl:col-span-2 2xl:col-span-1">
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
             <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
@@ -299,7 +379,7 @@ export function DashboardWorkbench() {
               {copy.generate} <ArrowRight className="h-4 w-4" />
             </button>
           </div>
-          <OutputBoard outputs={outputs} isLoading={isLoading} error={error} locale={locale} canUseOutputs={entitlement.canUseOutputs} onLockedAction={setUpgradeReason} />
+          <OutputBoard outputs={outputs} isLoading={isLoading} error={error} locale={locale} canUseOutputs={true} />
         </div>
       </section>
 
@@ -307,7 +387,7 @@ export function DashboardWorkbench() {
         <QualityScorePanel outputs={outputs} brain={getBrandBrain()} locale={locale} />
       )}
 
-      <PerformancePanel kit={currentKit} locale={locale} canAnalyze={entitlement.canAnalyze} onLockedAction={setUpgradeReason} />
+      <PerformancePanel kit={currentKit} locale={locale} canAnalyze={true} />
 
       <ContentOSPreview locale={locale} />
 

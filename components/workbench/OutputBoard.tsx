@@ -43,7 +43,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }, [isLoading]);
 
   async function copyOutput(output: KitOutput) {
-    if (output.locked || !canUseOutputs) {
+    if (!canUseOutputs) {
       onLockedAction?.("copy");
       return;
     }
@@ -56,7 +56,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   async function copyAll() {
-    if (!canUseOutputs || outputs.some((output) => output.locked)) {
+    if (!canUseOutputs) {
       onLockedAction?.("copy");
       return;
     }
@@ -67,7 +67,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   function downloadMarkdown() {
-    if (!canUseOutputs || outputs.some((output) => output.locked)) {
+    if (!canUseOutputs) {
       onLockedAction?.("export");
       return;
     }
@@ -105,7 +105,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                 className="btn-ghost focus-ring px-3 py-1.5 text-xs"
               >
                 {copiedAll ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5 text-fg-muted" />}
-                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
+                {!canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
               </button>
               <button
                 type="button"
@@ -113,7 +113,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                 className="btn-primary focus-ring px-3 py-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5" />
-                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToExport : copy.markdown}
+                {!canUseOutputs ? copy.unlockToExport : copy.markdown}
               </button>
             </>
           ) : null}
@@ -169,7 +169,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
         {outputs.map((output) => {
           const platform = getPlatform(output.platform);
           const copied = copiedPlatform === output.platform;
-          const locked = output.locked || !canUseOutputs;
+          const locked = !canUseOutputs;
           const previewBody = locked ? createPreview(output.body) : output.body;
           const mode = viewModes[output.platform] ?? "preview"; // Default to premium simulated preview
 
@@ -185,7 +185,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold leading-tight text-fg">{output.title}</h3>
-                    {locked ? <span className="tag tag-warn">Preview</span> : null}
+                    <span className="tag tag-success">{locale === "en" ? "Open" : "开放预览"}</span>
                     <span className="tag tag-neutral">{output.publishStatus ?? "draft"}</span>
                   </div>
                 </div>
@@ -287,7 +287,7 @@ function ContentBlock({ label, value, locked = false }: { label: string; value: 
       <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-fg">{value}</p>
       {locked ? (
         <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-xs font-medium text-warn">
-          Full body, CTA, notes, copy, export, and history will unlock after logging in and upgrading.
+          Showcase mode is open: full copy, CTA, notes, export, and analysis are available for review.
         </p>
       ) : null}
     </div>
@@ -511,7 +511,7 @@ function formatOutput(output: KitOutput, platformLabel: string): string {
 }
 
 function formatAllOutputs(outputs: KitOutput[]): string {
-  const header = `# Finfold / Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
+  const header = `# Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
   const body = outputs
     .map((output) => {
       const platform = getPlatform(output.platform);

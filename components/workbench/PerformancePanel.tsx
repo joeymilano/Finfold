@@ -40,7 +40,7 @@ const labels = {
     title: "发布数据回流",
     subtitle: "先手动录入每个平台的结果，Finfold 会计算转化表现，并给下一轮内容提出迭代方向。",
     empty: "生成内容包后，这里会出现每个平台的数据录入口。",
-    locked: "登录并升级后，可保存发布数据、查看分析和生成下一轮迭代建议。",
+    locked: "展示模式已开放发布数据录入、分析和下一轮迭代建议。",
     save: "保存数据",
     saved: "已保存",
     iterate: "生成迭代建议",
@@ -64,7 +64,7 @@ const labels = {
     title: "Performance Loop",
     subtitle: "Enter platform results manually first. Finfold calculates conversion signals and suggests the next iteration.",
     empty: "Generate a content kit first. Platform metric inputs will appear here.",
-    locked: "Log in and upgrade to save publishing data, view analysis, and generate the next iteration.",
+    locked: "Showcase mode opens publishing data entry, analysis, and next-iteration suggestions.",
     save: "Save data",
     saved: "Saved",
     iterate: "Generate iteration",
@@ -106,7 +106,7 @@ export function PerformancePanel({ kit, locale, canAnalyze, onLockedAction }: Pe
   const [report, setReport] = useState<IterationReport | null>(null);
 
   useEffect(() => {
-    if (!kit?.id || kit.id === "preview") {
+    if (!kit?.id || kit.id === "preview" || kit.id === "showcase-kit") {
       setMetrics({});
       setReport(null);
       return;
@@ -151,14 +151,18 @@ export function PerformancePanel({ kit, locale, canAnalyze, onLockedAction }: Pe
 
     setSavingPlatform(platform);
     setSavedPlatform(null);
-    await fetch("/api/performance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        kitId: kit.id,
-        metrics: { platform, ...(metrics[platform] ?? EMPTY_METRIC) }
-      })
-    });
+    try {
+      await fetch("/api/performance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kitId: kit.id,
+          metrics: { platform, ...(metrics[platform] ?? EMPTY_METRIC) }
+        })
+      });
+    } catch {
+      // Showcase mode still lets visitors explore local metric calculations.
+    }
     setSavingPlatform(null);
     setSavedPlatform(platform);
     window.setTimeout(() => setSavedPlatform(null), 1500);

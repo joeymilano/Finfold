@@ -2,50 +2,40 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
 import {
   Bot,
+  CalendarDays,
   CreditCard,
   FileStack,
   Gauge,
+  Library,
   Settings,
-  User,
+  ShieldCheck,
   WandSparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/hooks/useLocale";
 
-// V1 launch: show 4 core tabs. Uncomment items below to re-enable future tabs.
 const primaryTabs = [
-  { href: "/workbench",  zh: "生产区",  en: "Workbench", icon: WandSparkles },
-  { href: "/packages",   zh: "套件",    en: "Kits",      icon: FileStack },
-  { href: "/billing",    zh: "订阅",    en: "Billing",   icon: CreditCard },
-  { href: "/settings",   zh: "设置",   en: "Settings",  icon: Settings },
-  // ── V2+ (hidden until ready) ──────────────────────────────────
-  // { href: "/dashboard",  zh: "态势",   en: "Dashboard", icon: Gauge },
-  // { href: "/agents",     zh: "流程",   en: "Agents",    icon: Bot },
+  { href: "/dashboard", zh: "态势", en: "Dash", icon: Gauge },
+  { href: "/workbench", zh: "生产", en: "Build", icon: WandSparkles },
+  { href: "/packages", zh: "套件", en: "Kits", icon: FileStack },
+  { href: "/agents", zh: "流程", en: "Agents", icon: Bot },
+  { href: "/assets", zh: "资产", en: "Assets", icon: Library },
+  { href: "/calendar", zh: "排期", en: "Plan", icon: CalendarDays },
+  { href: "/guardrails", zh: "规则", en: "Rules", icon: ShieldCheck },
+  { href: "/billing", zh: "订阅", en: "Plans", icon: CreditCard },
+  { href: "/settings", zh: "设置", en: "Prefs", icon: Settings },
 ];
 
 export function MobileTabBar() {
   const pathname = usePathname();
   const locale = useLocale();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
-    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
-      const supabase = createSupabaseBrowserClient();
-      supabase.auth.getUser().then(({ data }) => setIsLoggedIn(!!data.user));
-      supabase.auth.onAuthStateChange((_e, session) => setIsLoggedIn(!!session?.user));
-    });
-  }, []);
-
-  const tabs = isLoggedIn
-    ? primaryTabs
-    : [...primaryTabs.slice(0, 3), { href: "/login", zh: "登录", en: "Log in", icon: User }];
+  const tabs = primaryTabs;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-hairline bg-surface/95 backdrop-blur-sm lg:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch gap-1 overflow-x-auto border-t border-hairline bg-surface/95 px-2 backdrop-blur-xl lg:hidden">
       {tabs.map(({ href, zh, en, icon: Icon }) => {
         const active = pathname === href || (href !== "/workbench" && pathname?.startsWith(href));
         const label = locale === "en" ? en : zh;
@@ -54,7 +44,7 @@ export function MobileTabBar() {
             key={href}
             href={href}
             className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
+              "flex min-w-[58px] flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
               active ? "text-brand" : "text-fg-muted"
             )}
           >

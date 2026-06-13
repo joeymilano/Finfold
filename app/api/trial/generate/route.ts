@@ -17,7 +17,7 @@ export async function POST(request: Request) {
 
     const outputs = (await generateKitOutputs(input)).map((output) => ({
       ...output,
-      locked: true,
+      locked: false,
       publishStatus: "draft" as const
     }));
 
@@ -29,11 +29,11 @@ export async function POST(request: Request) {
       platforms: input.platforms,
       mediaAssets: input.mediaAssets,
       outputs,
-      status: "preview",
+      status: "saved",
       createdAt: new Date().toISOString()
     };
 
-    return NextResponse.json({ kit, entitlement: { authenticated: false, plan: "trial", canUseOutputs: false, trialAvailable: false } });
+    return NextResponse.json({ kit, entitlement: { authenticated: false, plan: "showcase", canUseOutputs: true, canAnalyze: true, trialAvailable: true } });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Content generation is temporarily unavailable. Please try again later." },

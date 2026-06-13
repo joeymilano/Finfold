@@ -12,56 +12,56 @@
 [data-theme="light"] {
   color-scheme: light;
 
-  --bg: 248 250 252;          /* #F8FAFC canvas */
-  --surface: 255 255 255;     /* #FFFFFF panel */
-  --surface-2: 247 249 251;   /* #F7F9FB inset */
-  --hairline: 233 237 242;    /* #E9EDF2 */
-  --fg: 14 17 22;             /* #0E1116 */
-  --fg-muted: 102 112 133;    /* #667085 */
+  --bg: 245 244 239;
+  --surface: 255 255 251;
+  --surface-2: 239 237 229;
+  --hairline: 218 211 196;
+  --fg: 18 24 33;
+  --fg-muted: 98 104 116;
 
-  --brand: 22 163 74;         /* #16A34A green primary */
-  --brand-strong: 21 128 61;  /* #15803D */
-  --accent: 37 99 235;        /* #2563EB blue secondary */
+  --brand: 181 128 61;
+  --brand-strong: 133 91 45;
+  --accent: 22 119 139;
 
-  --positive: 22 163 74;      /* #16A34A */
-  --warn: 217 119 6;          /* #D97706 */
+  --positive: 17 132 91;
+  --warn: 181 128 61;
   --risk: 225 29 48;          /* #E11D48 */
 
-  --grid-line: 242 244 247;   /* #F2F4F7 chart gridlines */
+  --grid-line: 229 224 214;
 
   /* depth */
-  --shadow-panel: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
-  --shadow-raised: 0 8px 24px -8px rgba(16, 24, 40, 0.12), 0 2px 6px -2px rgba(16, 24, 40, 0.06);
-  --panel-radius: 14px;
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.72) inset, 0 16px 38px -28px rgba(18, 24, 33, 0.32);
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.78) inset, 0 22px 56px -30px rgba(18, 24, 33, 0.42);
+  --panel-radius: 10px;
   --edge-highlight: transparent;
-  --selection-bg: 187 247 208;  /* green-200 */
+  --selection-bg: 247 215 151;
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: 11 13 18;             /* #0B0D12 charcoal */
-  --surface: 20 23 31;        /* #14171F */
-  --surface-2: 26 30 40;      /* #1A1E28 */
-  --hairline: 31 35 46;       /* #1F232E */
-  --fg: 230 232 236;          /* #E6E8EC */
-  --fg-muted: 138 144 160;    /* #8A90A0 */
+  --bg: 7 10 16;
+  --surface: 13 17 25;
+  --surface-2: 18 24 34;
+  --hairline: 42 48 60;
+  --fg: 236 235 229;
+  --fg-muted: 145 152 164;
 
-  --brand: 52 211 153;        /* #34D399 glow green */
-  --brand-strong: 34 197 94;  /* #22C55E */
-  --accent: 56 189 248;       /* #38BDF8 sky */
+  --brand: 214 166 92;
+  --brand-strong: 240 194 117;
+  --accent: 78 190 203;
 
-  --positive: 52 211 153;     /* #34D399 */
-  --warn: 251 191 36;         /* #FBBF24 */
-  --risk: 251 113 133;        /* #FB7185 */
+  --positive: 65 211 153;
+  --warn: 240 194 117;
+  --risk: 251 113 133;
 
   --grid-line: 255 255 255;   /* used at low alpha */
 
-  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px -12px rgba(0, 0, 0, 0.6);
-  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 40px -16px rgba(0, 0, 0, 0.7);
-  --panel-radius: 18px;
-  --edge-highlight: rgba(255, 255, 255, 0.06);
-  --selection-bg: 6 78 59;     /* deep green */
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 18px 48px -26px rgba(0, 0, 0, 0.8);
+  --shadow-raised: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 28px 70px -30px rgba(0, 0, 0, 0.9);
+  --panel-radius: 10px;
+  --edge-highlight: rgba(255, 255, 255, 0.08);
+  --selection-bg: 92 66 28;
 }
 
 * {
@@ -75,9 +75,11 @@ html {
 body {
   min-height: 100vh;
   margin: 0;
-  background: rgb(var(--bg));
+  background:
+    linear-gradient(135deg, rgb(var(--bg)), rgb(var(--surface-2) / 0.82)),
+    rgb(var(--bg));
   color: rgb(var(--fg));
-  font-family: var(--font-geist-sans, Inter), ui-sans-serif, system-ui, -apple-system,
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;
   letter-spacing: 0;
   -webkit-font-smoothing: antialiased;
@@ -116,7 +118,7 @@ button:disabled {
   font-size: 11px;
   line-height: 1;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: rgb(var(--fg-muted));
 }
@@ -137,7 +139,9 @@ button:disabled {
 
 .panel {
   border: 1px solid rgb(var(--hairline));
-  background: rgb(var(--surface));
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.035), transparent),
+    rgb(var(--surface) / 0.96);
   border-radius: var(--panel-radius);
   box-shadow: var(--shadow-panel);
   transition: box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1),
@@ -152,8 +156,8 @@ button:disabled {
 /* inset / secondary surface block */
 .panel-inset {
   border: 1px solid rgb(var(--hairline));
-  background: rgb(var(--surface-2));
-  border-radius: 10px;
+  background: rgb(var(--surface-2) / 0.82);
+  border-radius: 8px;
 }
 
 /* dark command block that stays dark in BOTH themes (Agent room) */
@@ -170,20 +174,21 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: #ffffff;
-  background: rgb(var(--brand));
-  border: 1px solid rgb(var(--brand-strong));
-  box-shadow: 0 1px 2px rgb(var(--brand) / 0.3), 0 8px 24px -10px rgb(var(--brand) / 0.5);
+  color: rgb(var(--bg));
+  background: linear-gradient(135deg, rgb(var(--brand-strong)), rgb(var(--brand)));
+  border: 1px solid rgb(var(--brand-strong) / 0.88);
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.16) inset, 0 12px 28px -16px rgb(var(--brand) / 0.82);
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms, background 160ms;
 }
 
 .btn-primary:hover {
   transform: translateY(-1px);
-  background: rgb(var(--brand-strong));
+  background: linear-gradient(135deg, rgb(var(--brand)), rgb(var(--accent)));
   box-shadow: 0 2px 4px rgb(var(--brand) / 0.35), 0 12px 30px -8px rgb(var(--brand) / 0.55);
 }
 
@@ -196,12 +201,12 @@ button:disabled {
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 0.625rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
   color: rgb(var(--fg));
-  background: rgb(var(--surface));
+  background: rgb(var(--surface) / 0.76);
   border: 1px solid rgb(var(--hairline));
   transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), border-color 160ms, background 160ms;
 }

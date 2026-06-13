@@ -3,12 +3,10 @@ export const runtime = "edge";
 import { NextResponse } from "next/server";
 import { iterateRequestSchema, type IterationReport } from "@/lib/content-schema";
 import { saveMockIterationReport } from "@/lib/mock-store";
-import { getCurrentUserId } from "@/lib/supabase";
 import { getPlatform } from "@/lib/platforms";
 
 export async function POST(request: Request) {
   try {
-    await getCurrentUserId();
     const input = iterateRequestSchema.parse(await request.json());
     const sorted = [...input.metrics].sort((a, b) => score(b) - score(a));
     const best = sorted[0];
