@@ -57,7 +57,11 @@ async function generateViaLetta(
 // ─── Direct LLM Generation ──────────────────────────────────────────
 
 async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
-  if (!process.env.LLM_API_KEY) {
+  // Accept either a dedicated LLM key or fall back to the Letta key
+  // (Letta exposes an OpenAI-compatible /v1/chat/completions endpoint
+  //  that works without an agent ID).
+  const apiKey = process.env.LLM_API_KEY ?? process.env.LETTA_API_KEY;
+  if (!apiKey) {
     throw new Error("AI 生成未配置 — AI generation is not configured. Please set LLM_API_KEY in your deployment environment variables.");
   }
 
@@ -94,7 +98,7 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.LLM_API_KEY}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify(requestBody)
     });

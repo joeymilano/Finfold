@@ -8,7 +8,7 @@ import { saveMockKit } from "@/lib/mock-store";
 import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from "@/lib/payment/entitlements";
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
 import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
-import { isLettaConfigured } from "@/lib/letta";
+import { createLettaAgent, getLettaAgent, isLettaConfigured } from "@/lib/letta";
 
 export async function POST(request: Request) {
   try {
@@ -152,16 +152,22 @@ async function persistKit(userId: string, kit: ContentKit) {
 
 /**
  * Resolve the Letta agent ID for a user.
- * Checks the user_agents table first, then falls back to user_metadata.
- * Returns null if Letta is not configured or no agent is found.
+ * Checks the user_agents table first, then user_metadata.
+ * If an agent ID is found but is stale (Letta 404/429), clears it and
+ * creates a fresh agent so the generate call never hits a dead agent.
+ * Returns null if Letta is not configured.
  */
 async function resolveLettaAgentId(userId: string): Promise<string | null> {
   if (!isLettaConfigured()) {
     return null;
   }
 
-  // Try user_agents table first
   const admin = createSupabaseAdminClient();
+  const supabase = await createSupabaseServerClient();
+
+  // Collect candidate agent ID from DB or metadata
+  let agentId: string | null = null;
+
   if (admin) {
     const { data: mapping } = await admin
       .from("user_agents")
@@ -169,18 +175,56 @@ async function resolveLettaAgentId(userId: string): Promise<string | null> {
       .eq("user_id", userId)
       .maybeSingle();
     if (mapping?.letta_agent_id) {
-      return mapping.letta_agent_id;
+      agentId = mapping.letta_agent_id;
     }
   }
 
-  // Fallback to user_metadata
-  const supabase = await createSupabaseServerClient();
-  if (supabase) {
+  if (!agentId && supabase) {
     const { data: { user } } = await supabase.auth.getUser();
     if (user?.user_metadata?.letta_agent_id) {
-      return user.user_metadata.letta_agent_id as string;
+      agentId = user.user_metadata.letta_agent_id as string;
     }
   }
 
-  return null;
+  // Validate the agent is still live on Letta
+  if (agentId) {
+    try {
+      await getLettaAgent(agentId);
+      return agentId; // still valid
+    } catch {
+      // Stale / deleted agent — clear mapping and fall through to recreate
+      if (admin) {
+        await admin.from("user_agents").delete().eq("user_id", userId);
+      }
+      if (supabase) {
+        await supabase.auth.updateUser({ data: { letta_agent_id: null } });
+      }
+      agentId = null;
+    }
+  }
+
+  // No valid agent — create a fresh one
+  try {
+    let userEmail = "";
+    if (supabase) {
+      const { data: { user } } = await supabase.auth.getUser();
+      userEmail = user?.email ?? "";
+    }
+    const newAgent = await createLettaAgent(userId, userEmail);
+
+    if (admin) {
+      await admin.from("user_agents").upsert(
+        { user_id: userId, letta_agent_id: newAgent.id, letta_agent_name: newAgent.name },
+        { onConflict: "user_id" }
+      );
+    }
+    if (supabase) {
+      await supabase.auth.updateUser({ data: { letta_agent_id: newAgent.id } });
+    }
+
+    return newAgent.id;
+  } catch {
+    // Letta unavailable — return null so generateKitOutputs skips Letta path
+    return null;
+  }
 }
