@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, WandSparkles, Eye, Code } from "lucide-react";
+import { ArrowRight, Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, WandSparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -338,11 +338,34 @@ function SocialMockup({
   notes: string;
   locked: boolean;
 }) {
-  const isXiaohongshu = platform === "xiaohongshu";
-  const isMoments = platform === "moments";
+  switch (platform) {
+    case "xiaohongshu":
+      return <XiaohongshuMockup title={title} body={body} cta={cta} notes={notes} />;
+    case "moments":
+      return <MomentsMockup body={body} cta={cta} />;
+    case "wechat":
+      return <WechatMockup title={title} body={body} cta={cta} notes={notes} />;
+    case "linkedin":
+      return <LinkedInMockup body={body} cta={cta} notes={notes} />;
+    case "reddit":
+    case "hacker-news":
+    case "indie-hackers":
+      return <RedditMockup platform={platform} title={title} body={body} cta={cta} notes={notes} />;
+    case "product-hunt":
+      return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} />;
+    case "medium-substack":
+      return <NewsletterMockup title={title} body={body} cta={cta} />;
+    case "threads":
+      return <ThreadsMockup body={body} cta={cta} />;
+    case "x":
+    default:
+      return <XMockup body={body} cta={cta} notes={notes} />;
+  }
+}
 
-  if (isXiaohongshu) {
-    return (
+// ── Xiaohongshu (RED) — cover image + note detail ──────────────────
+function XiaohongshuMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+  return (
       <div className="flex flex-col bg-white">
         {/* Xiaohongshu simulated navigation */}
         <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs text-slate-800 font-semibold">
@@ -356,10 +379,10 @@ function SocialMockup({
           <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]" />
           <div className="relative z-10">
             <span className="inline-flex rounded-full bg-rose-500 px-3 py-1 text-[10px] font-bold tracking-wider uppercase mb-2 shadow-sm">
-              Xiaohongshu Template
+              小红书 封面
             </span>
             <h4 className="text-lg font-bold leading-snug px-3 line-clamp-3">{title}</h4>
-            <p className="mt-2 text-[10px] text-white/80 font-medium">Repurpose OS NATIVE PREVIEW</p>
+            <p className="mt-2 text-[10px] text-white/80 font-medium">FINFOLD NATIVE PREVIEW</p>
           </div>
         </div>
 
@@ -386,9 +409,9 @@ function SocialMockup({
           {cta && <p className="mt-3 text-xs font-semibold text-rose-600">{cta}</p>}
           {notes && <p className="mt-3 text-[11px] text-slate-400 bg-slate-50 rounded p-2 border border-slate-100">{notes}</p>}
           <div className="mt-3.5 flex flex-wrap gap-1.5">
-            <span className="text-xs font-medium text-blue-500 hover:underline">#RepurposeOS</span>
-            <span className="text-xs font-medium text-blue-500 hover:underline">#IndieHacker</span>
-            <span className="text-xs font-medium text-blue-500 hover:underline">#SaasGrowth</span>
+            <span className="text-xs font-medium text-blue-500 hover:underline">#Finfold</span>
+            <span className="text-xs font-medium text-blue-500 hover:underline">#独立开发者</span>
+            <span className="text-xs font-medium text-blue-500 hover:underline">#内容增长</span>
           </div>
         </div>
 
@@ -416,8 +439,9 @@ function SocialMockup({
     );
   }
 
-  if (isMoments) {
-    return (
+// ── WeChat Moments (朋友圈) — single post detail ───────────────────
+function MomentsMockup({ body, cta }: { body: string; cta: string }) {
+  return (
       <div className="flex flex-col bg-[#EDEDED] text-slate-900 pb-3">
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 font-semibold">
@@ -469,9 +493,10 @@ function SocialMockup({
         </div>
       </div>
     );
-  }
+}
 
-  // Fallback to Twitter/X style mockup
+// ── X / Twitter — single post detail ───────────────────────────────
+function XMockup({ body, cta, notes }: { body: string; cta: string; notes: string }) {
   return (
     <div className="flex flex-col bg-white">
       {/* Twitter simulated nav */}
@@ -490,10 +515,10 @@ function SocialMockup({
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="text-sm font-bold text-slate-950 leading-none">Founder OS</span>
+                <span className="text-sm font-bold text-slate-950 leading-none">Finfold</span>
                 <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] text-white">✓</span>
               </div>
-              <p className="text-xs text-slate-500">@repurpose_os · Just now</p>
+              <p className="text-xs text-slate-500">@finfold · Just now</p>
             </div>
           </div>
           <MoreHorizontal className="h-4 w-4 text-slate-400" />
@@ -529,6 +554,274 @@ function SocialMockup({
           <Share2 className="h-4.5 w-4.5 hover:text-emerald-500 cursor-pointer" />
           <Heart className="h-4.5 w-4.5 hover:text-rose-500 cursor-pointer" />
           <Send className="h-4.5 w-4.5 hover:text-sky-500 cursor-pointer" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── WeChat Official Account (公众号) — long-form article ────────────
+function WechatMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+  return (
+    <div className="flex flex-col bg-white">
+      {/* WeChat article nav */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-800">
+        <span className="text-slate-400">✕</span>
+        <span className="font-bold text-slate-900">公众号文章</span>
+        <MoreHorizontal className="h-4 w-4 text-slate-700" />
+      </div>
+
+      <div className="max-h-[460px] overflow-y-auto px-4 py-4">
+        {/* Article title */}
+        <h1 className="text-lg font-bold leading-snug text-slate-900">{title}</h1>
+
+        {/* Account row */}
+        <div className="mt-3 flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded bg-[#07C160] text-xs font-bold text-white">公</div>
+          <div className="leading-tight">
+            <p className="text-xs font-medium text-[#576B95]">Finfold 增长笔记</p>
+            <p className="text-[10px] text-slate-400">Just now · 北京</p>
+          </div>
+        </div>
+
+        {/* Article body */}
+        <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-slate-800">{body}</div>
+
+        {cta && (
+          <div className="mt-4 rounded-lg bg-[#07C160]/10 p-3 text-sm font-semibold text-[#07A152]">{cta}</div>
+        )}
+
+        {notes && (
+          <p className="mt-4 rounded-lg border border-slate-100 bg-slate-50 p-3 text-xs leading-normal text-slate-500">{notes}</p>
+        )}
+
+        {/* Footer actions */}
+        <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs text-slate-400">
+          <span className="flex items-center gap-1.5"><ThumbsUp className="h-4 w-4" /> 赞</span>
+          <span className="flex items-center gap-1.5"><Star className="h-4 w-4" /> 在看</span>
+          <span className="flex items-center gap-1.5"><Share2 className="h-4 w-4" /> 分享</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── LinkedIn — professional feed post ──────────────────────────────
+function LinkedInMockup({ body, cta, notes }: { body: string; cta: string; notes: string }) {
+  return (
+    <div className="flex flex-col bg-white">
+      {/* LinkedIn nav */}
+      <div className="flex items-center justify-between border-b border-slate-100 bg-[#F4F2EE] px-3.5 py-2.5 text-xs font-semibold text-slate-700">
+        <span className="font-bold text-[#0A66C2]">in</span>
+        <span className="text-slate-500">Feed</span>
+        <MoreHorizontal className="h-4 w-4 text-slate-500" />
+      </div>
+
+      <div className="px-4 py-3.5">
+        {/* Author row */}
+        <div className="flex items-start justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#0A66C2] text-sm font-bold text-white">FF</div>
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-slate-900">Finfold Founder</p>
+              <p className="text-[11px] text-slate-500">Building AI growth tooling · 1st</p>
+              <p className="text-[11px] text-slate-400">Just now · 🌐</p>
+            </div>
+          </div>
+          <span className="text-sm font-semibold text-[#0A66C2]">+ Follow</span>
+        </div>
+
+        {/* Post body */}
+        <div className="mt-3 max-h-72 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-800">{body}</div>
+
+        {cta && <p className="mt-3 text-sm font-semibold text-[#0A66C2]">{cta}</p>}
+
+        {notes && (
+          <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs leading-normal text-slate-500">{notes}</p>
+        )}
+
+        {/* Reaction count */}
+        <div className="mt-3 flex items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] text-slate-500">
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0A66C2] text-[8px] text-white">👍</span>
+          <span>Sarah, Mike and 248 others</span>
+          <span className="ml-auto">37 comments</span>
+        </div>
+
+        {/* Action bar */}
+        <div className="mt-1 flex items-center justify-between px-1 text-xs font-semibold text-slate-500">
+          <span className="flex items-center gap-1.5 py-1.5"><ThumbsUp className="h-4 w-4" /> Like</span>
+          <span className="flex items-center gap-1.5 py-1.5"><MessageCircle className="h-4 w-4" /> Comment</span>
+          <span className="flex items-center gap-1.5 py-1.5"><Repeat2 className="h-4 w-4" /> Repost</span>
+          <span className="flex items-center gap-1.5 py-1.5"><Send className="h-4 w-4" /> Send</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Reddit / HN / Indie Hackers — discussion thread post ───────────
+function RedditMockup({ platform, title, body, cta, notes }: { platform: string; title: string; body: string; cta: string; notes: string }) {
+  const meta =
+    platform === "hacker-news"
+      ? { brand: "Hacker News", accent: "#FF6600", sub: "news.ycombinator.com", tag: "Show HN" }
+      : platform === "indie-hackers"
+        ? { brand: "Indie Hackers", accent: "#0E2439", sub: "indiehackers.com", tag: "Milestone" }
+        : { brand: "Reddit", accent: "#FF4500", sub: "r/SideProject", tag: "Discussion" };
+
+  return (
+    <div className="flex flex-col bg-white">
+      {/* Nav */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: meta.accent }}>
+            {platform === "hacker-news" ? "Y" : platform === "indie-hackers" ? "IH" : "r"}
+          </span>
+          <span className="text-slate-900">{meta.sub}</span>
+        </span>
+        <MoreHorizontal className="h-4 w-4 text-slate-500" />
+      </div>
+
+      <div className="flex gap-2.5 px-3 py-3.5">
+        {/* Vote rail */}
+        <div className="flex flex-col items-center gap-0.5 pt-0.5 text-slate-400">
+          <ArrowBigUp className="h-5 w-5" style={{ color: meta.accent }} />
+          <span className="text-xs font-bold text-slate-700">2.4k</span>
+          <ArrowBigDown className="h-5 w-5" />
+        </div>
+
+        {/* Body column */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: meta.accent }}>{meta.tag}</span>
+            <span>Posted by u/finfold_dev · 1h</span>
+          </div>
+
+          <h3 className="mt-2 text-sm font-bold leading-snug text-slate-900">{title}</h3>
+
+          <div className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</div>
+
+          {cta && <p className="mt-2.5 text-[13px] font-semibold text-slate-600 italic">{cta}</p>}
+
+          {notes && (
+            <p className="mt-2.5 rounded border border-slate-100 bg-slate-50 p-2 text-[11px] leading-normal text-slate-400">{notes}</p>
+          )}
+
+          {/* Action row */}
+          <div className="mt-3 flex items-center gap-4 text-[11px] font-semibold text-slate-500">
+            <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 184 Comments</span>
+            <span className="flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> Share</span>
+            <span className="flex items-center gap-1"><Bookmark className="h-3.5 w-3.5" /> Save</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Product Hunt — launch card ─────────────────────────────────────
+function ProductHuntMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+  return (
+    <div className="flex flex-col bg-white">
+      {/* Nav */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
+        <span className="flex items-center gap-1.5">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#DA552F] text-[11px] font-bold text-white">P</span>
+          <span className="text-slate-900">Product Hunt</span>
+        </span>
+        <MoreHorizontal className="h-4 w-4 text-slate-500" />
+      </div>
+
+      <div className="px-4 py-4">
+        {/* Product header */}
+        <div className="flex items-start gap-3">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#DA552F] to-amber-500 text-lg font-black text-white shadow-sm">F</div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900">Finfold</p>
+            {/* Tagline = title */}
+            <p className="text-[13px] leading-snug text-slate-600">{title}</p>
+          </div>
+          {/* Upvote button */}
+          <div className="flex flex-col items-center justify-center rounded-lg border border-[#DA552F] px-2.5 py-1 text-[#DA552F]">
+            <ChevronUp className="h-4 w-4" />
+            <span className="text-xs font-bold">1.2K</span>
+          </div>
+        </div>
+
+        {/* Topic pills */}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {["Marketing", "Artificial Intelligence", "SaaS"].map((t) => (
+            <span key={t} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">{t}</span>
+          ))}
+        </div>
+
+        {/* Maker comment */}
+        <div className="mt-3.5 rounded-xl border border-slate-100 bg-slate-50 p-3">
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#DA552F]">
+            <Award className="h-3.5 w-3.5" /> MAKER COMMENT
+          </div>
+          <div className="max-h-56 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</div>
+        </div>
+
+        {cta && <p className="mt-3 text-[13px] font-semibold text-[#DA552F]">{cta}</p>}
+
+        {notes && (
+          <p className="mt-3 rounded-lg border border-slate-100 bg-white p-2.5 text-[11px] leading-normal text-slate-400">{notes}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Medium / Substack — article reader ─────────────────────────────
+function NewsletterMockup({ title, body, cta }: { title: string; body: string; cta: string }) {
+  return (
+    <div className="flex flex-col bg-white">
+      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
+        <span className="font-serif text-base font-bold text-slate-900">M</span>
+        <span className="text-slate-500">Story</span>
+        <Bookmark className="h-4 w-4 text-slate-500" />
+      </div>
+
+      <div className="max-h-[440px] overflow-y-auto px-5 py-5">
+        <h1 className="font-serif text-2xl font-bold leading-tight text-slate-900">{title}</h1>
+        <div className="mt-3 flex items-center gap-2.5 border-b border-slate-100 pb-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">FF</div>
+          <div className="text-xs leading-tight">
+            <p className="font-semibold text-slate-800">Finfold</p>
+            <p className="text-slate-400">6 min read · Just now</p>
+          </div>
+        </div>
+        <div className="mt-4 whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800">{body}</div>
+        {cta && <p className="mt-4 font-serif text-[15px] font-semibold text-emerald-700">{cta}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Threads — casual short post ────────────────────────────────────
+function ThreadsMockup({ body, cta }: { body: string; cta: string }) {
+  return (
+    <div className="flex flex-col bg-white">
+      <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
+        <span className="text-slate-400">←</span>
+        <span className="font-bold text-slate-900">Thread</span>
+        <MoreHorizontal className="h-4 w-4 text-slate-500" />
+      </div>
+      <div className="px-4 py-3.5">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">@</div>
+          <div className="leading-tight">
+            <p className="text-sm font-semibold text-slate-900">finfold</p>
+            <p className="text-[11px] text-slate-400">Just now</p>
+          </div>
+        </div>
+        <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-900">{body}</div>
+        {cta && <p className="mt-3 text-sm font-semibold text-slate-600">{cta}</p>}
+        <div className="mt-4 flex items-center gap-5 text-slate-400">
+          <Heart className="h-5 w-5" />
+          <MessageCircle className="h-5 w-5" />
+          <Repeat2 className="h-5 w-5" />
+          <Send className="h-5 w-5" />
         </div>
       </div>
     </div>
