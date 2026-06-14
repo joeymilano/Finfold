@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
+import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award, ImageIcon } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -226,6 +226,22 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                 </div>
               </div>
 
+              {/* AI-Generated Cover Image */}
+              {output.imageUrl && (
+                <div className="mb-4 overflow-hidden rounded-lg border border-hairline">
+                  <img
+                    src={output.imageUrl}
+                    alt={output.title}
+                    className="w-full object-cover"
+                    loading="lazy"
+                    onError={(e) => {
+                      // Hide the image container on load error
+                      (e.target as HTMLImageElement).parentElement!.style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
+
               {/* View Rendering */}
               {mode === "preview" ? (
                 <div className="flex justify-center rounded-xl border border-hairline bg-surface-2 p-4">
@@ -238,6 +254,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                       cta={locked ? copy.lockedCtaPreview : output.cta}
                       notes={locked ? copy.lockedNotesPreview : output.notes}
                       locked={locked}
+                      imageUrl={output.imageUrl}
                     />
                   </div>
                 </div>
@@ -300,7 +317,8 @@ function SocialMockup({
   title,
   body,
   cta,
-  notes
+  notes,
+  imageUrl
 }: {
   platform: string;
   title: string;
@@ -308,22 +326,23 @@ function SocialMockup({
   cta: string;
   notes: string;
   locked: boolean;
+  imageUrl?: string;
 }) {
   switch (platform) {
     case "xiaohongshu":
-      return <XiaohongshuMockup title={title} body={body} cta={cta} notes={notes} />;
+      return <XiaohongshuMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "moments":
-      return <MomentsMockup body={body} cta={cta} />;
+      return <MomentsMockup body={body} cta={cta} imageUrl={imageUrl} />;
     case "wechat":
-      return <WechatMockup title={title} body={body} cta={cta} notes={notes} />;
+      return <WechatMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "linkedin":
-      return <LinkedInMockup body={body} cta={cta} notes={notes} />;
+      return <LinkedInMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "reddit":
     case "hacker-news":
     case "indie-hackers":
-      return <RedditMockup platform={platform} title={title} body={body} cta={cta} notes={notes} />;
+      return <RedditMockup platform={platform} title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "product-hunt":
-      return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} />;
+      return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "medium-substack":
       return <NewsletterMockup title={title} body={body} cta={cta} />;
     case "threads":
@@ -335,7 +354,7 @@ function SocialMockup({
 }
 
 // ── Xiaohongshu (RED) — cover image + note detail ──────────────────
-function XiaohongshuMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
   return (
       <div className="flex flex-col bg-white">
         {/* Xiaohongshu simulated navigation */}
@@ -345,7 +364,19 @@ function XiaohongshuMockup({ title, body, cta, notes }: { title: string; body: s
           <Share2 className="h-4 w-4 text-slate-700" />
         </div>
 
-        {/* Cover image placeholder */}
+        {/* Cover image */}
+        {imageUrl ? (
+          <div className="relative aspect-[4/3] overflow-hidden">
+            <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+            <div className="absolute bottom-3 left-3 right-3 z-10">
+              <span className="inline-flex rounded-full bg-rose-500 px-3 py-1 text-[10px] font-bold tracking-wider uppercase mb-1 shadow-sm">
+                小红书 封面
+              </span>
+              <h4 className="text-sm font-bold leading-snug text-white line-clamp-2">{title}</h4>
+            </div>
+          </div>
+        ) : (
         <div className="relative aspect-[4/3] bg-gradient-to-tr from-rose-400/80 via-rose-500 to-indigo-600/90 flex flex-col items-center justify-center p-6 text-center text-white">
           <div className="absolute inset-0 bg-slate-950/20 backdrop-blur-[1px]" />
           <div className="relative z-10">
@@ -356,6 +387,7 @@ function XiaohongshuMockup({ title, body, cta, notes }: { title: string; body: s
             <p className="mt-2 text-[10px] text-white/80 font-medium">FINFOLD NATIVE PREVIEW</p>
           </div>
         </div>
+        )}
 
         {/* Publisher row */}
         <div className="flex items-center justify-between px-3.5 py-3 border-b border-slate-50">
@@ -411,7 +443,7 @@ function XiaohongshuMockup({ title, body, cta, notes }: { title: string; body: s
   }
 
 // ── WeChat Moments (朋友圈) — single post detail ───────────────────
-function MomentsMockup({ body, cta }: { body: string; cta: string }) {
+function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; imageUrl?: string }) {
   return (
       <div className="flex flex-col bg-[#EDEDED] text-slate-900 pb-3">
         {/* Top Header */}
@@ -435,12 +467,18 @@ function MomentsMockup({ body, cta }: { body: string; cta: string }) {
             </div>
             {cta && <p className="mt-2 text-sm font-semibold text-[#576B95]">{cta}</p>}
             
-            {/* Mocked Grid Image placeholder */}
+            {/* Cover image or Grid Image placeholder */}
+            {imageUrl ? (
+              <div className="mt-3 overflow-hidden rounded-sm border border-slate-100 w-56">
+                <img src={imageUrl} alt="Post cover" className="w-full object-cover" loading="lazy" />
+              </div>
+            ) : (
             <div className="mt-3 grid grid-cols-3 gap-1.5 w-56">
               <div className="aspect-square rounded-sm bg-gradient-to-br from-indigo-500 to-cyan-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Image</div>
               <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Repurpose</div>
               <div className="aspect-square rounded-sm bg-gradient-to-br from-emerald-500 to-lime-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Growth</div>
             </div>
+            )}
 
             {/* Time & Action Button */}
             <div className="mt-3.5 flex items-center justify-between">
@@ -467,7 +505,7 @@ function MomentsMockup({ body, cta }: { body: string; cta: string }) {
 }
 
 // ── X / Twitter — single post detail ───────────────────────────────
-function XMockup({ body, cta, notes }: { body: string; cta: string; notes: string }) {
+function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; notes: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       {/* Twitter simulated nav */}
@@ -499,6 +537,13 @@ function XMockup({ body, cta, notes }: { body: string; cta: string; notes: strin
         <div className="mt-3 text-sm text-slate-900 leading-relaxed whitespace-pre-wrap">
           {body}
         </div>
+
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-3 overflow-hidden rounded-2xl border border-slate-200">
+            <img src={imageUrl} alt="Post image" className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
         
         {cta && (
           <p className="mt-3.5 text-sm font-semibold text-indigo-600 underline decoration-indigo-200 underline-offset-4 decoration-2">
@@ -532,7 +577,7 @@ function XMockup({ body, cta, notes }: { body: string; cta: string; notes: strin
 }
 
 // ── WeChat Official Account (公众号) — long-form article ────────────
-function WechatMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+function WechatMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       {/* WeChat article nav */}
@@ -558,6 +603,13 @@ function WechatMockup({ title, body, cta, notes }: { title: string; body: string
         {/* Article body */}
         <div className="mt-4 whitespace-pre-wrap text-[15px] leading-7 text-slate-800">{body}</div>
 
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-4 overflow-hidden rounded-lg border border-slate-100">
+            <img src={imageUrl} alt={title} className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
+
         {cta && (
           <div className="mt-4 rounded-lg bg-[#07C160]/10 p-3 text-sm font-semibold text-[#07A152]">{cta}</div>
         )}
@@ -578,7 +630,7 @@ function WechatMockup({ title, body, cta, notes }: { title: string; body: string
 }
 
 // ── LinkedIn — professional feed post ──────────────────────────────
-function LinkedInMockup({ body, cta, notes }: { body: string; cta: string; notes: string }) {
+function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; notes: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       {/* LinkedIn nav */}
@@ -607,6 +659,13 @@ function LinkedInMockup({ body, cta, notes }: { body: string; cta: string; notes
 
         {cta && <p className="mt-3 text-sm font-semibold text-[#0A66C2]">{cta}</p>}
 
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-3 overflow-hidden rounded-lg border border-slate-200">
+            <img src={imageUrl} alt="Post cover" className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
+
         {notes && (
           <p className="mt-3 rounded-lg border border-slate-100 bg-slate-50 p-2.5 text-xs leading-normal text-slate-500">{notes}</p>
         )}
@@ -631,7 +690,7 @@ function LinkedInMockup({ body, cta, notes }: { body: string; cta: string; notes
 }
 
 // ── Reddit / HN / Indie Hackers — discussion thread post ───────────
-function RedditMockup({ platform, title, body, cta, notes }: { platform: string; title: string; body: string; cta: string; notes: string }) {
+function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platform: string; title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
   const meta =
     platform === "hacker-news"
       ? { brand: "Hacker News", accent: "#FF6600", sub: "news.ycombinator.com", tag: "Show HN" }
@@ -690,7 +749,7 @@ function RedditMockup({ platform, title, body, cta, notes }: { platform: string;
 }
 
 // ── Product Hunt — launch card ─────────────────────────────────────
-function ProductHuntMockup({ title, body, cta, notes }: { title: string; body: string; cta: string; notes: string }) {
+function ProductHuntMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       {/* Nav */}
@@ -725,6 +784,13 @@ function ProductHuntMockup({ title, body, cta, notes }: { title: string; body: s
           ))}
         </div>
 
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-100">
+            <img src={imageUrl} alt={title} className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
+
         {/* Maker comment */}
         <div className="mt-3.5 rounded-xl border border-slate-100 bg-slate-50 p-3">
           <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#DA552F]">
@@ -744,7 +810,7 @@ function ProductHuntMockup({ title, body, cta, notes }: { title: string; body: s
 }
 
 // ── Medium / Substack — article reader ─────────────────────────────
-function NewsletterMockup({ title, body, cta }: { title: string; body: string; cta: string }) {
+function NewsletterMockup({ title, body, cta, imageUrl }: { title: string; body: string; cta: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
@@ -763,6 +829,14 @@ function NewsletterMockup({ title, body, cta }: { title: string; body: string; c
           </div>
         </div>
         <div className="mt-4 whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800">{body}</div>
+
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-4 overflow-hidden rounded-lg border border-slate-100">
+            <img src={imageUrl} alt={title} className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
+
         {cta && <p className="mt-4 font-serif text-[15px] font-semibold text-emerald-700">{cta}</p>}
       </div>
     </div>
@@ -770,7 +844,7 @@ function NewsletterMockup({ title, body, cta }: { title: string; body: string; c
 }
 
 // ── Threads — casual short post ────────────────────────────────────
-function ThreadsMockup({ body, cta }: { body: string; cta: string }) {
+function ThreadsMockup({ body, cta, imageUrl }: { body: string; cta: string; imageUrl?: string }) {
   return (
     <div className="flex flex-col bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
@@ -787,6 +861,14 @@ function ThreadsMockup({ body, cta }: { body: string; cta: string }) {
           </div>
         </div>
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-900">{body}</div>
+
+        {/* AI-generated cover image */}
+        {imageUrl && (
+          <div className="mt-3 overflow-hidden rounded-xl border border-slate-100">
+            <img src={imageUrl} alt="Post image" className="w-full object-cover" loading="lazy" />
+          </div>
+        )}
+
         {cta && <p className="mt-3 text-sm font-semibold text-slate-600">{cta}</p>}
         <div className="mt-4 flex items-center gap-5 text-slate-400">
           <Heart className="h-5 w-5" />

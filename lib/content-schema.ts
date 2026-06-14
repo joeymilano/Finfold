@@ -44,7 +44,11 @@ export const kitOutputSchema = z.object({
   notes: z.string().min(1),
   strategy: z.string().min(1),
   locked: z.boolean().default(false),
-  publishStatus: publishStatusSchema.default("draft")
+  publishStatus: publishStatusSchema.default("draft"),
+  /** AI-generated cover image URL for this platform output */
+  imageUrl: z.string().url().optional().or(z.literal("")),
+  /** The prompt used to generate the cover image */
+  imagePrompt: z.string().optional()
 });
 
 export const contentKitSchema = z.object({
