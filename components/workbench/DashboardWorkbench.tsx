@@ -305,26 +305,26 @@ export function DashboardWorkbench() {
   const copy = dashboardCopy[locale];
 
   return (
-    <div className="grid gap-6 pb-10">
-      <section className="relative isolate overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
+    <div className="grid gap-4 pb-10 sm:gap-6">
+      <section className="relative isolate overflow-hidden rounded-md border border-hairline bg-surface p-4 shadow-panel sm:p-5 md:p-6">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_20%,rgb(var(--brand)/0.18),transparent_30%),linear-gradient(135deg,rgb(var(--fg)/0.04),transparent_48%)]" />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="eyebrow">Finfold Workbench</p>
-            <h1 className="mt-3 max-w-4xl text-4xl font-black leading-[0.95] text-fg md:text-6xl">
+            <h1 className="mt-3 max-w-4xl break-words text-3xl font-black leading-none text-fg sm:text-4xl md:text-6xl">
               {locale === "en" ? "Workbench" : "创作台"}
             </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <Link href="/packages" className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg">
+          <div className="flex flex-wrap items-center gap-2 text-sm sm:justify-end">
+            <Link href="/packages" className="focus-ring inline-flex w-full items-center justify-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg sm:w-auto">
               {locale === "en" ? "View Kits" : "查看套件"}
             </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(320px,0.9fr)_minmax(340px,0.95fr)_minmax(460px,1.25fr)]">
-        <div className="workbench-scroll grid content-start gap-4 xl:col-span-2 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1 2xl:col-span-1">
+      <section className="grid min-w-0 items-start gap-4 sm:gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(320px,0.9fr)_minmax(340px,0.95fr)_minmax(460px,1.25fr)]">
+        <div className="workbench-scroll grid min-w-0 content-start gap-4 xl:col-span-2 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1 2xl:col-span-1">
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
             <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
@@ -333,7 +333,7 @@ export function DashboardWorkbench() {
           <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
         </div>
 
-        <div className="workbench-scroll grid content-start gap-4 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1">
+        <div className="workbench-scroll grid min-w-0 content-start gap-4 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1">
           <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">2</span>
@@ -345,12 +345,12 @@ export function DashboardWorkbench() {
           <KitHistory kits={kits} />
         </div>
 
-        <div className="grid content-start gap-4">
-          <div className="flex items-center justify-between gap-3 px-1">
+        <div className="grid min-w-0 content-start gap-4">
+          <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">3</span>
-                <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Platform Content Kit" : "平台资产包"}</h2>
+                <h2 className="min-w-0 text-sm font-semibold text-fg">{locale === "en" ? "Platform Content Kit" : "平台资产包"}</h2>
               </div>
               {!canGenerate && generateDisabledReason ? (
                 <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
@@ -363,7 +363,7 @@ export function DashboardWorkbench() {
               onClick={() => void generateKit()}
               disabled={!canGenerate}
               title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
-              className="focus-ring btn-primary inline-flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              className="focus-ring btn-primary inline-flex w-full items-center justify-center gap-2 text-sm disabled:opacity-50 sm:w-auto"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4 text-accent" />}
               {copy.generate} <ArrowRight className="h-4 w-4" />

@@ -71,13 +71,13 @@ export function PlatformSelector({ value, onChange, locale }: PlatformSelectorPr
   }
 
   return (
-    <section className="panel rounded-md p-4">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <section className="panel min-w-0 rounded-md p-4">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <Globe2 className="h-4 w-4 text-fg" />
-          <h2 className="text-sm font-black">{copy.platformsTitle}</h2>
+          <h2 className="min-w-0 break-words text-sm font-black">{copy.platformsTitle}</h2>
         </div>
-        <span className="text-xs text-fg-muted">{value.length} {copy.selected}</span>
+        <span className="shrink-0 text-xs text-fg-muted">{value.length} {copy.selected}</span>
       </div>
       <div className="grid gap-2">
         {platforms.map((platform) => {
@@ -91,7 +91,7 @@ export function PlatformSelector({ value, onChange, locale }: PlatformSelectorPr
               key={platform.id}
               onClick={() => togglePlatform(platform.id)}
               className={joinClasses(
-                "focus-ring group rounded-sm border p-3 text-left transition duration-200",
+                "focus-ring group min-w-0 rounded-sm border p-3 text-left transition duration-200",
                 selected
                   ? "border-brand bg-brand text-white shadow-glow-brand"
                   : "border-hairline bg-surface hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2"
@@ -100,8 +100,8 @@ export function PlatformSelector({ value, onChange, locale }: PlatformSelectorPr
               <div className="flex items-start gap-3">
                 <PlatformBrandIcon platform={platform.id} selected={selected} className="h-10 w-10 shrink-0 text-[12px]" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-start gap-2">
-                    <span className="min-w-0 text-sm font-semibold leading-5">{title}</span>
+                  <div className="flex min-w-0 items-start gap-2">
+                    <span className="min-w-0 break-words text-sm font-semibold leading-5">{title}</span>
                     <span
                       className={joinClasses(
                         "ml-auto shrink-0 rounded-sm border border-current px-2 py-0.5 text-[10px] font-black",
