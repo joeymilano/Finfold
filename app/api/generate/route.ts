@@ -9,11 +9,7 @@ import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
 import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
 import { createLettaAgent, getLettaAgent, isLettaConfigured } from "@/lib/letta";
-
-/** Check if image generation is configured (edge-safe, no node:https import) */
-function isImageGenConfigured(): boolean {
-  return Boolean(process.env.IMAGE_API_KEY);
-}
+import { isImageGenConfigured } from "@/lib/image-gen";
 
 export async function POST(request: Request) {
   try {

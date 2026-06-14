@@ -7,11 +7,9 @@
  * API docs: https://apihub.agnes-ai.com
  * Model: agnes-image-2.1-flash
  *
- * NOTE: Uses node:https instead of global fetch because Next.js's
- * fetch wrapper can cause timeouts in certain environments.
+ * Uses the standard fetch API for Edge Runtime compatibility
+ * (required by Cloudflare Pages).
  */
-
-import https from "node:https";
 
 // Lazy env reads for edge-runtime compatibility
 const imageApiBase = () => process.env.IMAGE_API_BASE ?? "https://apihub.agnes-ai.com";
@@ -31,54 +29,6 @@ export function isImageGenConfigured(): boolean {
   return Boolean(imageApiKey());
 }
 
-// ─── HTTPS helper ────────────────────────────────────────────────────
-
-/**
- * Make an HTTPS POST request using node:https (bypasses Next.js fetch).
- * Returns the parsed JSON response body.
- */
-function httpsPost<T>(url: string, headers: Record<string, string>, body: unknown, timeoutMs = 60_000): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url);
-    const postData = JSON.stringify(body);
-
-    const req = https.request(
-      {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: "POST",
-        headers: {
-          ...headers,
-          "Content-Length": Buffer.byteLength(postData),
-        },
-        timeout: timeoutMs,
-      },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
-        res.on("end", () => {
-          try {
-            const parsed = JSON.parse(data) as T;
-            if (res.statusCode && res.statusCode >= 400) {
-              reject(new Error(`Image API ${res.statusCode}: ${data.slice(0, 200)}`));
-            } else {
-              resolve(parsed);
-            }
-          } catch {
-            reject(new Error(`Image API returned invalid JSON: ${data.slice(0, 200)}`));
-          }
-        });
-      }
-    );
-
-    req.on("error", (e) => reject(new Error(`Image API request failed: ${e.message}`)));
-    req.on("timeout", () => { req.destroy(); reject(new Error("Image API request timed out (60s)")); });
-    req.write(postData);
-    req.end();
-  });
-}
-
 // ─── Core Generation ─────────────────────────────────────────────────
 
 /**
@@ -96,18 +46,28 @@ export async function generateImage(
   const apiKey = imageApiKey();
   const model = imageModel();
 
-  console.log(`[ImageGen] Requesting: model=${model} size=${size}`);
-
-  const data = await httpsPost<{
-    data?: Array<{ url?: string; b64_json?: string | null; revised_prompt?: string | null }>;
-  }>(
-    url,
-    {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${apiKey}`,
     },
-    { model, prompt, n: 1, size }
-  );
+    body: JSON.stringify({
+      model,
+      prompt,
+      n: 1,
+      size,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Image API ${res.status}: ${body || res.statusText}`);
+  }
+
+  const data = (await res.json()) as {
+    data?: Array<{ url?: string; b64_json?: string | null; revised_prompt?: string | null }>;
+  };
 
   const image = data.data?.[0];
   if (!image?.url) {
@@ -133,7 +93,7 @@ export function buildImagePrompt(params: {
   ideaText: string;
   locale: "zh" | "en";
 }): string {
-  const { platform, title, body, ideaText, locale } = params;
+  const { platform, title, ideaText } = params;
 
   // Extract key themes from the content
   const coreIdea = ideaText.slice(0, 200);
@@ -154,10 +114,6 @@ export function buildImagePrompt(params: {
   };
 
   const style = platformStyle[platform] ?? "modern digital marketing visual";
-
-  if (locale === "zh") {
-    return `Create a visually striking social media cover image for a ${platform} post. Style: ${style}. The post is about: "${coreIdea}". Headline: "${headline}". The image should be eye-catching, professional, and suitable for ${platform}. No text overlay. High quality, 4K resolution.`;
-  }
 
   return `Create a visually striking social media cover image for a ${platform} post. Style: ${style}. The post is about: "${coreIdea}". Headline: "${headline}". The image should be eye-catching, professional, and suitable for ${platform}. No text overlay. High quality, 4K resolution.`;
 }
