@@ -42,10 +42,10 @@ const ICONS: Record<ToastType, React.ElementType> = {
 };
 
 const COLORS: Record<ToastType, string> = {
-  success: "text-positive border-positive/30 bg-positive/5",
-  error: "text-risk border-risk/30 bg-risk/5",
-  info: "text-accent border-accent/30 bg-accent/5",
-  warning: "text-warn border-warn/30 bg-warn/5",
+  success: "text-positive border-positive/30 bg-surface",
+  error: "text-risk border-risk/30 bg-surface",
+  info: "text-accent border-accent/30 bg-surface",
+  warning: "text-warn border-warn/30 bg-surface",
 };
 
 const ICON_COLORS: Record<ToastType, string> = {
@@ -96,7 +96,7 @@ export function ToastContainer() {
               exit={{ opacity: 0, y: -8, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
               className={cn(
-                "pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg backdrop-blur-md w-full",
+                "pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-lg w-full",
                 COLORS[toast.type],
               )}
             >
