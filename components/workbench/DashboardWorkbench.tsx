@@ -136,7 +136,7 @@ type Entitlement = {
 };
 
 export function DashboardWorkbench() {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("zh");
   // sync from global LocaleToggle
   useEffect(() => {
     if (typeof window !== "undefined") {

@@ -6,7 +6,7 @@ export const DEFAULT_THEME: Theme = "dark";
 // ── Locale (global, localStorage-backed) ────────────────────
 export type Locale = "zh" | "en";
 export const LOCALE_STORAGE_KEY = "finfold-locale";
-export const DEFAULT_LOCALE: Locale = "en";
+export const DEFAULT_LOCALE: Locale = "zh";
 
 export function getStoredLocale(): Locale {
   if (typeof window === "undefined") return DEFAULT_LOCALE;

@@ -19,7 +19,7 @@ async function persistLocaleToProfile(locale: Locale) {
 
 export function LocaleToggle() {
   const pathname = usePathname();
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("zh");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {

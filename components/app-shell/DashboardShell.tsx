@@ -30,7 +30,7 @@ const navItemDefs = [
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("zh");
 
   useEffect(() => {
     setLocale(getStoredLocale());
