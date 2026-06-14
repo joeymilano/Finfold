@@ -1,6 +1,6 @@
 "use client";
 
-import { ImagePlus, Loader2, Video } from "lucide-react";
+import { ImagePlus, Loader2, Video, X } from "lucide-react";
 import { useState } from "react";
 import { addToast } from "@/components/ui/Toast";
 import type { MediaAsset } from "@/lib/content-schema";
@@ -51,6 +51,10 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
     }
   }
 
+  function removeAsset(id: string) {
+    onChange(assets.filter((asset) => asset.id !== id));
+  }
+
   return (
     <section className="panel min-w-0 rounded-md p-4">
       <div className="mb-3 flex min-w-0 items-center gap-2">
@@ -82,9 +86,18 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
       {assets.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {assets.map((asset) => (
-            <div key={asset.id} className="flex min-w-0 items-center justify-between gap-3 rounded-sm border border-hairline bg-surface px-3 py-2 text-xs font-bold shadow-panel">
-              <span className="min-w-0 truncate">{asset.name}</span>
-              <span className="text-fg-muted">{asset.type}</span>
+            <div key={asset.id} className="flex min-w-0 items-center justify-between gap-2 rounded-sm border border-hairline bg-surface px-3 py-2 text-xs font-bold shadow-panel">
+              <span className="min-w-0 flex-1 truncate">{asset.name}</span>
+              <span className="shrink-0 text-fg-muted">{asset.type}</span>
+              <button
+                type="button"
+                onClick={() => removeAsset(asset.id)}
+                aria-label={locale === "en" ? "Remove" : "删除"}
+                title={locale === "en" ? "Remove" : "删除"}
+                className="focus-ring shrink-0 rounded-sm p-1 text-fg-muted transition-colors hover:bg-surface-2 hover:text-risk"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
         </div>
