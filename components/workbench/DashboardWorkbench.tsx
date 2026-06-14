@@ -313,8 +313,8 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(320px,0.9fr)_minmax(340px,0.95fr)_minmax(460px,1.25fr)]">
-        <div className="grid min-w-0 content-start gap-4 xl:col-span-2 2xl:col-span-1">
+      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(420px,1.2fr)] 2xl:grid-cols-[minmax(320px,0.82fr)_minmax(380px,0.95fr)_minmax(480px,1.35fr)]">
+        <div className="grid min-w-0 content-start gap-4">
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
             <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
@@ -335,7 +335,7 @@ export function DashboardWorkbench() {
           <KitHistory kits={kits} />
         </div>
 
-        <div className="grid min-w-0 content-start gap-4">
+        <div className="grid min-w-0 content-start gap-4 xl:col-span-2 2xl:col-span-1">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="min-w-0">
               <div className="flex items-center gap-2">

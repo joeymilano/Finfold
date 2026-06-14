@@ -89,7 +89,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   };
 
   return (
-    <section className="panel min-h-[720px] p-5">
+    <section className="panel min-h-[720px] min-w-0 overflow-hidden p-5">
       <div className="mb-5 flex flex-col gap-3 border-b border-hairline pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2.5">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
@@ -174,8 +174,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
           const mode = viewModes[output.platform] ?? "preview"; // Default to premium simulated preview
 
           return (
-            <article key={output.platform} className="panel panel-hover p-4">
-              <div className="mb-4 flex items-start justify-between gap-3 border-b border-hairline pb-3.5">
+            <article key={output.platform} className="panel panel-hover min-w-0 p-4">
+              <div className="mb-4 flex flex-col gap-3 border-b border-hairline pb-3.5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs font-semibold text-fg-muted">
                     <span className="flex h-5 w-5 items-center justify-center rounded-md bg-surface-2 text-fg">
@@ -190,7 +190,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   {/* Toggle Preview vs Raw Mode */}
                   <div className="inline-flex rounded-lg bg-surface-2 p-0.5">
                     <button
@@ -228,7 +228,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
 
               {/* View Rendering */}
               {mode === "preview" ? (
-                <div className="flex justify-center rounded-xl border border-hairline bg-surface-2 p-4">
+                <div className="flex min-w-0 justify-center rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
                   <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
                     {/* High Fidelity Simulated Preview */}
                     <SocialMockup
