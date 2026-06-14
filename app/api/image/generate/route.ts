@@ -16,7 +16,7 @@
 import { NextResponse } from "next/server";
 import { generateImage, isImageGenConfigured } from "@/lib/image-gen";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 
 export async function POST(request: Request) {
   if (!isImageGenConfigured()) {
