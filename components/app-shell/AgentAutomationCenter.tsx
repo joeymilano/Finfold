@@ -38,35 +38,35 @@ export function AgentAutomationCenter() {
   );
 
   const copy = locale === "en" ? {
-    title: "Talk to your content Agent",
-    desc: "Make the Agent the starting point: ask for the next channel, reuse brand memory, or turn one product note into a clear creation brief.",
+    title: "Content Agent",
+    desc: "Ask what to create next — the Agent uses your brand memory, saved kits, and channel gaps.",
     chatTitle: "Agent chat",
-    chatStatus: "Reads brand memory, saved kits, and channel gaps",
-    placeholder: "Ask what to create next...",
+    chatStatus: "Brand memory · Saved kits · Channel gaps",
+    placeholder: "What should I create next?",
     send: "Send",
     thinking: "Thinking...",
-    fallback: "The agent could not reply yet. Check login and Letta configuration.",
-    runCreate: "Create in Workbench",
+    fallback: "The agent could not reply. Check login and Letta config.",
+    runCreate: "Go to Workbench",
     memory: "Brand Memory",
     rules: "Brand Rules",
-    contextTitle: "Agent context",
-    contextDesc: "Keep these three inputs updated so the Agent can give sharper marketing advice.",
-    contextItems: ["Product positioning", "Voice and examples", "Words to avoid"],
-    nextTitle: "Good questions to ask",
+    contextTitle: "Agent reads",
+    contextDesc: "Keep these updated for sharper advice.",
+    contextItems: ["Product positioning", "Voice & examples", "Words to avoid"],
+    nextTitle: "Try asking",
   } : {
-    title: "和你的内容 Agent 对话",
-    desc: "把 Agent 当成入口：问下一步做哪个平台、怎么复用品牌记忆，或把一条产品更新变成清晰的创作 brief。",
+    title: "内容 Agent",
+    desc: "问下一步该做什么 — Agent 会读取品牌记忆、已保存内容和平台缺口。",
     chatTitle: "Agent 对话",
-    chatStatus: "读取品牌记忆、内容库和平台缺口",
-    placeholder: "问问下一步该创作什么...",
+    chatStatus: "品牌记忆 · 内容库 · 平台缺口",
+    placeholder: "下一步该创作什么？",
     send: "发送",
     thinking: "思考中...",
-    fallback: "Agent 暂时无法回复。请检查登录状态和 Letta 配置。",
-    runCreate: "去创作台执行",
+    fallback: "Agent 暂时无法回复，请检查登录和配置。",
+    runCreate: "去创作台",
     memory: "品牌记忆",
     rules: "品牌规则",
-    contextTitle: "Agent 会参考这些信息",
-    contextDesc: "把这三类信息维护好，Agent 才能给出更像真人增长顾问的建议。",
+    contextTitle: "Agent 会参考",
+    contextDesc: "保持更新，建议更精准。",
     contextItems: ["产品定位", "语气和示例", "不要使用的表达"],
     nextTitle: "可以这样问",
   };
@@ -119,10 +119,10 @@ export function AgentAutomationCenter() {
                 <Bot className="h-4 w-4" />
                 {copy.chatTitle}
               </div>
-              <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight text-white md:text-6xl">
+              <h1 className="mt-3 text-2xl font-bold leading-tight text-white md:text-3xl">
                 {copy.title}
               </h1>
-              <p className="mt-4 max-w-3xl text-base font-medium leading-7 text-white/58">
+              <p className="mt-2 max-w-xl text-sm leading-6 text-white/55">
                 {copy.desc}
               </p>
             </div>
