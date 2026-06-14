@@ -10,6 +10,11 @@
  *  - Send structured generation requests (for /api/generate etc.)
  *
  * Letta docs: https://docs.letta.com/api-reference
+ *
+ * IMPORTANT: The Letta /v1/chat/completions endpoint is NOT a standard
+ * OpenAI-compatible endpoint — it requires an agent_id. Therefore, we
+ * must NOT use it as an LLM fallback. The LLM fallback uses the
+ * z-ai-web-dev-sdk instead (see lib/llm.ts).
  */
 
 const LETTA_BASE_URL  = process.env.LETTA_API_URL  ?? "https://api.letta.com";
@@ -67,6 +72,22 @@ function headers(): Record<string, string> {
   };
 }
 
+/**
+ * Check if an error is an "agent-not-found" error from the Letta API.
+ * This happens when a stale agent ID is stored in user metadata.
+ */
+export function isAgentNotFoundError(error: unknown): boolean {
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("agent-not-found") ||
+      msg.includes("could not be found") ||
+      (msg.includes("429") && msg.includes("agent"))
+    );
+  }
+  return false;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {}
@@ -101,6 +122,7 @@ export async function listLettaAgents(): Promise<LettaAgent[]> {
 
 /**
  * Get a single Letta agent by ID.
+ * Throws if the agent does not exist or the API key is invalid.
  */
 export async function getLettaAgent(agentId: string): Promise<LettaAgent> {
   return request<LettaAgent>(`/v1/agents/${agentId}`);
@@ -111,6 +133,10 @@ export async function getLettaAgent(agentId: string): Promise<LettaAgent> {
  *
  * The agent is given a persona that matches Finfold's brand content
  * creation use-case, plus a human block that identifies the user.
+ *
+ * Uses the model specified in LETTA_MODEL env var (default: openai/gpt-4o-mini).
+ * If the model is not available (e.g. openai-proxy/gpt-4.1-mini not registered),
+ * falls back to openai/gpt-4o-mini which is always available on Letta.
  */
 export async function createLettaAgent(
   userId: string,
@@ -148,10 +174,29 @@ export async function createLettaAgent(
     memory_blocks: memoryBlocks,
   };
 
-  return request<LettaAgent>("/v1/agents", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  try {
+    return await request<LettaAgent>("/v1/agents", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  } catch (primaryError) {
+    // If the configured model is not found, fall back to openai/gpt-4o-mini
+    const errMsg = primaryError instanceof Error ? primaryError.message : String(primaryError);
+    if (errMsg.includes("NOT_FOUND") || errMsg.includes("not found")) {
+      console.warn(
+        `[Letta] Model "${LETTA_MODEL}" not found, falling back to openai/gpt-4o-mini`
+      );
+      const fallbackBody: Record<string, unknown> = {
+        ...body,
+        model: "openai/gpt-4o-mini",
+      };
+      return request<LettaAgent>("/v1/agents", {
+        method: "POST",
+        body: JSON.stringify(fallbackBody),
+      });
+    }
+    throw primaryError;
+  }
 }
 
 /**
@@ -165,6 +210,12 @@ export async function deleteLettaAgent(agentId: string): Promise<void> {
 
 /**
  * Send a user message to a Letta agent and return the parsed response.
+ *
+ * Uses the non-streaming API for reliability. The Letta API returns:
+ * { messages: [...], stop_reason, usage }
+ *
+ * Each message has: { id, date, message_type, content, ... }
+ * message_type can be: "assistant_message", "reasoning_message", "tool_call_message", etc.
  */
 export async function sendLettaMessage(
   agentId: string,
@@ -181,12 +232,10 @@ export async function sendLettaMessage(
   );
 
   // Parse response — Letta returns { messages: [...], stop_reason, usage }
-  // but may also return a plain array or content array in some versions
   let rawMessages: unknown[] = [];
 
   if (data && typeof data === "object") {
     if ("messages" in data && Array.isArray((data as Record<string, unknown>).messages)) {
-      // Standard Letta response: { messages: [...], stop_reason, usage }
       rawMessages = (data as Record<string, unknown>).messages as unknown[];
     } else if (Array.isArray(data)) {
       rawMessages = data;
@@ -219,9 +268,9 @@ export async function sendLettaMessage(
     };
   });
 
-  // Extract the assistant message
+  // Extract the assistant message — prefer assistant_message type
   const assistantMessage = messages
-    .filter((m) => m.role === "assistant" || m.message_type === "assistant_message")
+    .filter((m) => m.message_type === "assistant_message" || m.role === "assistant")
     .map((m) => m.content)
     .filter(Boolean)
     .join("\n\n");
@@ -259,6 +308,9 @@ export async function sendLettaStructuredRequest(
 /**
  * Send a user message to a Letta agent using streaming (SSE).
  * Returns a ReadableStream for the frontend to consume.
+ *
+ * NOTE: The Letta streaming API requires "streaming: true" for SDK v1.0+.
+ * If streaming is not available, falls back to non-streaming.
  */
 export async function streamLettaMessage(
   agentId: string,
@@ -271,7 +323,7 @@ export async function streamLettaMessage(
     headers: headers(),
     body: JSON.stringify({
       messages: [{ role: "user", content: userMessage }],
-      stream_tokens: true,
+      stream_steps: true,
     }),
   });
 

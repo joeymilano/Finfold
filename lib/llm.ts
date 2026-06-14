@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { GenerateRequest, KitOutput } from "@/lib/content-schema";
 import { kitOutputSchema } from "@/lib/content-schema";
 import { buildGenerationPrompt } from "@/lib/prompts";
-import { isLettaConfigured, sendLettaStructuredRequest } from "@/lib/letta";
+import { isLettaConfigured, sendLettaStructuredRequest, isAgentNotFoundError } from "@/lib/letta";
 
 const llmResponseSchema = z.object({
   outputs: z.array(kitOutputSchema)
@@ -13,7 +13,16 @@ const llmResponseSchema = z.object({
  *
  * If Letta is configured and a lettaAgentId is provided, the request
  * is routed through the user's Letta agent. Otherwise, it falls back
- * to the direct OpenAI-compatible LLM API.
+ * to the direct LLM API.
+ *
+ * IMPORTANT: The Letta /v1/chat/completions endpoint is NOT a standard
+ * OpenAI-compatible endpoint — it requires an agent_id. Therefore, we
+ * must NOT use it as an LLM fallback.
+ *
+ * For the LLM fallback, we use the z-ai-web-dev-sdk via a dedicated
+ * API route (/api/llm/generate) that runs on Node.js runtime (not edge).
+ * This is because z-ai-web-dev-sdk uses Node.js modules (fs, path, os)
+ * that are not available in edge runtime.
  */
 export async function generateKitOutputs(
   input: GenerateRequest,
@@ -21,7 +30,17 @@ export async function generateKitOutputs(
 ): Promise<KitOutput[]> {
   // ── Letta Agent path ──────────────────────────────────────────
   if (isLettaConfigured() && lettaAgentId) {
-    return generateViaLetta(input, lettaAgentId);
+    try {
+      return await generateViaLetta(input, lettaAgentId);
+    } catch (error) {
+      // If the agent is not found (stale ID), don't retry — fall through to LLM
+      if (isAgentNotFoundError(error)) {
+        console.warn("[LLM] Letta agent not found (stale ID), falling back to direct LLM");
+      } else {
+        console.error("[LLM] Letta generation failed, falling back to direct LLM:", error);
+      }
+      // Fall through to direct LLM
+    }
   }
 
   // ── Direct LLM path (fallback) ────────────────────────────────
@@ -34,84 +53,49 @@ async function generateViaLetta(
   input: GenerateRequest,
   agentId: string
 ): Promise<KitOutput[]> {
-  try {
-    const prompt = buildGenerationPrompt(input);
-    const content = await sendLettaStructuredRequest(agentId, prompt);
+  const prompt = buildGenerationPrompt(input);
+  const content = await sendLettaStructuredRequest(agentId, prompt);
 
-    const parsedJson = parseJsonObject(content);
-    const parsed = llmResponseSchema.parse(parsedJson);
-    const requested = new Set(input.platforms);
-    const outputs = parsed.outputs.filter((output) => requested.has(output.platform));
+  const parsedJson = parseJsonObject(content);
+  const parsed = llmResponseSchema.parse(parsedJson);
+  const requested = new Set(input.platforms);
+  const outputs = parsed.outputs.filter((output) => requested.has(output.platform));
 
-    if (outputs.length !== input.platforms.length) {
-      throw new Error("Letta agent response did not include every requested platform.");
-    }
-
-    return outputs;
-  } catch (error) {
-    console.error("Letta generation failed, falling back to direct LLM:", error);
-    return generateViaLLM(input);
+  if (outputs.length !== input.platforms.length) {
+    throw new Error("Letta agent response did not include every requested platform.");
   }
+
+  return outputs;
 }
 
 // ─── Direct LLM Generation ──────────────────────────────────────────
 
+/**
+ * Generate content via the z-ai-web-dev-sdk through a dedicated API route.
+ *
+ * Since the /api/generate route runs on edge runtime, we cannot directly
+ * import z-ai-web-dev-sdk (which uses Node.js modules like fs, path, os).
+ * Instead, we call a Node.js-runtime API route that wraps the SDK.
+ */
 async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
-  // Accept either a dedicated LLM key or fall back to the Letta key
-  // (Letta exposes an OpenAI-compatible /v1/chat/completions endpoint
-  //  that works without an agent ID).
-  const apiKey = process.env.LLM_API_KEY ?? process.env.LETTA_API_KEY;
-  if (!apiKey) {
-    throw new Error("AI 生成未配置 — AI generation is not configured. Please set LLM_API_KEY in your deployment environment variables.");
-  }
-
   try {
-    const modelName = process.env.LLM_MODEL ?? "gpt-4o-mini";
-    const isGlm5 = modelName.startsWith("glm-5");
+    const prompt = buildGenerationPrompt(input);
 
-    const apiBase = process.env.LLM_API_BASE ?? "https://api.openai.com/v1";
-    const supportsJsonMode = apiBase.includes("openai.com") || apiBase.includes("bigmodel.cn");
-
-    const requestBody: Record<string, unknown> = {
-      model: modelName,
-      temperature: isGlm5 ? 1.0 : 0.7,
-      ...(supportsJsonMode ? { response_format: { type: "json_object" } } : {}),
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a senior growth strategist. Return strict JSON that matches the requested schema."
-        },
-        {
-          role: "user",
-          content: buildGenerationPrompt(input)
-        }
-      ]
-    };
-
-    // Enable thinking reasoning mode for GLM-5 series models
-    if (isGlm5) {
-      requestBody.thinking = { type: "enabled" };
-    }
-
-    const response = await fetch(`${apiBase}/chat/completions`, {
+    // Call our own Node.js-runtime API route that wraps z-ai-web-dev-sdk
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const response = await fetch(`${baseUrl}/api/llm/generate`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify(requestBody)
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
     });
 
     if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(`LLM request failed: ${response.status} ${detail}`);
+      const errorBody = await response.text().catch(() => "");
+      throw new Error(`LLM API ${response.status}: ${errorBody || response.statusText}`);
     }
 
-    const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = data.choices?.[0]?.message?.content;
+    const data = (await response.json()) as { content: string };
+    const content = data.content;
 
     if (!content) {
       throw new Error("LLM returned an empty response.");
@@ -129,7 +113,7 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
     return outputs;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    console.error("LLM generation failed:", detail);
+    console.error("[LLM] Direct LLM generation failed:", detail);
     throw new Error(`AI generation failed: ${detail}`);
   }
 }

@@ -8,7 +8,7 @@ import { saveMockKit } from "@/lib/mock-store";
 import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from "@/lib/payment/entitlements";
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
 import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
-import { createLettaAgent, getLettaAgent, isLettaConfigured } from "@/lib/letta";
+import { createLettaAgent, getLettaAgent, isLettaConfigured, isAgentNotFoundError } from "@/lib/letta";
 
 export async function POST(request: Request) {
   try {
@@ -191,8 +191,9 @@ async function resolveLettaAgentId(userId: string): Promise<string | null> {
     try {
       await getLettaAgent(agentId);
       return agentId; // still valid
-    } catch {
+    } catch (error) {
       // Stale / deleted agent — clear mapping and fall through to recreate
+      console.warn("[generate] Stale Letta agent detected, clearing:", agentId, error instanceof Error ? error.message : String(error));
       if (admin) {
         await admin.from("user_agents").delete().eq("user_id", userId);
       }
@@ -223,8 +224,9 @@ async function resolveLettaAgentId(userId: string): Promise<string | null> {
     }
 
     return newAgent.id;
-  } catch {
+  } catch (error) {
     // Letta unavailable — return null so generateKitOutputs skips Letta path
+    console.warn("[generate] Failed to create Letta agent, will use direct LLM fallback:", error instanceof Error ? error.message : String(error));
     return null;
   }
 }

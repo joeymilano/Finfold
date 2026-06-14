@@ -12,6 +12,7 @@ import {
   getLettaAgent,
   createLettaAgent,
   isLettaConfigured,
+  isAgentNotFoundError,
 } from "@/lib/letta";
 
 /**
@@ -81,12 +82,29 @@ export async function POST(request: Request) {
       .select("letta_agent_id")
       .eq("user_id", authUser.id)
       .maybeSingle();
-    if (mapping) agentId = mapping.letta_agent_id;
+    if (mapping?.letta_agent_id) {
+      agentId = mapping.letta_agent_id;
+    }
   }
 
   if (!agentId) {
     const meta = authUser.user_metadata ?? {};
     agentId = meta.letta_agent_id ?? null;
+  }
+
+  // Validate the agent still exists on Letta
+  if (agentId) {
+    try {
+      await getLettaAgent(agentId);
+    } catch (error) {
+      // Agent was deleted / stale — clear mapping and recreate
+      console.warn("[letta/chat] Stale agent detected, recreating:", agentId);
+      if (admin) {
+        await admin.from("user_agents").delete().eq("user_id", authUser.id);
+      }
+      await supabase.auth.updateUser({ data: { letta_agent_id: null } });
+      agentId = null;
+    }
   }
 
   // If no agent, create one on the fly
@@ -113,38 +131,6 @@ export async function POST(request: Request) {
     } catch (e) {
       return NextResponse.json(
         { error: `Failed to create AI agent: ${(e as Error).message}` },
-        { status: 500 }
-      );
-    }
-  }
-
-  // Verify the agent still exists
-  try {
-    await getLettaAgent(agentId);
-  } catch {
-    // Agent was deleted — recreate
-    try {
-      const newAgent = await createLettaAgent(authUser.id, authUser.email ?? "");
-
-      if (admin) {
-        await admin.from("user_agents").upsert(
-          {
-            user_id: authUser.id,
-            letta_agent_id: newAgent.id,
-            letta_agent_name: newAgent.name,
-          },
-          { onConflict: "user_id" }
-        );
-      }
-
-      await supabase.auth.updateUser({
-        data: { letta_agent_id: newAgent.id },
-      });
-
-      agentId = newAgent.id;
-    } catch (e) {
-      return NextResponse.json(
-        { error: `Failed to recreate AI agent: ${(e as Error).message}` },
         { status: 500 }
       );
     }
