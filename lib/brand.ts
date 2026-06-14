@@ -1,6 +1,6 @@
 export const brand = {
   name: "Finfold",
-  chineseName: "Finfold",
+  chineseName: "一鱼多吃",
   slogan: "Your AI marketing employee — retainer + performance pay.",
   description:
     "An AI content operations workspace built exclusively for founders and solo teams. Turn one product signal into platform-native growth kits across every channel.",
