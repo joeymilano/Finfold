@@ -8,6 +8,14 @@ import { useLocale } from "@/hooks/useLocale";
 
 type UserState = { email: string } | null;
 
+/**
+ * UserMenu — compact user menu shown in the top bar.
+ *
+ * User data is fetched from the backend /api/auth/user route so that
+ * the secret service-role key is never exposed to the browser.
+ * Auth state changes are still detected via the Supabase browser client
+ * (using the publishable key only) for real-time reactivity.
+ */
 export function UserMenu() {
   const router = useRouter();
   const locale = useLocale();
@@ -21,29 +29,54 @@ export function UserMenu() {
       return;
     }
 
-    let supabase: ReturnType<typeof import("@/lib/supabase-client").createSupabaseBrowserClient>;
-    try {
-      // dynamic import to avoid SSR issues
-      import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
-        supabase = createSupabaseBrowserClient();
-        supabase.auth.getUser().then(({ data }) => {
-          setUser(data.user ? { email: data.user.email ?? "" } : null);
-        });
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-          setUser(session?.user ? { email: session.user.email ?? "" } : null);
-        });
-        return () => subscription.unsubscribe();
-      });
-    } catch {
-      // Supabase not configured
+    async function loadUser() {
+      try {
+        const res = await fetch("/api/auth/user", { cache: "no-store" });
+        const data = await res.json();
+        setUser(data.user ? { email: data.user.email ?? "" } : null);
+      } catch {
+        setUser(null);
+      }
     }
+
+    void loadUser();
+
+    // Use the Supabase browser client (publishable key only) to listen
+    // for auth state changes and trigger a re-fetch from the backend.
+    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
+      const supabase = createSupabaseBrowserClient();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        void loadUser();
+      });
+
+      // Also re-fetch on visibility change and window focus
+      function onVisibilityChange() {
+        if (document.visibilityState === "visible") {
+          void loadUser();
+        }
+      }
+
+      function onWindowFocus() {
+        void loadUser();
+      }
+
+      document.addEventListener("visibilitychange", onVisibilityChange);
+      window.addEventListener("focus", onWindowFocus);
+
+      return () => {
+        subscription.unsubscribe();
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("focus", onWindowFocus);
+      };
+    });
   }, []);
 
   async function logout() {
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      // Route through backend API to keep secret key server-side
+      await fetch("/api/auth/logout", { method: "POST" });
+      setUser(null);
       router.push("/dashboard");
     } catch {
       // ignore

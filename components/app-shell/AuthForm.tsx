@@ -6,13 +6,19 @@ import { useState } from "react";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { FishLogo } from "@/components/app-shell/FishLogo";
 import { brand } from "@/lib/brand";
-import { createSupabaseBrowserClient } from "@/lib/supabase-client";
 import { useLocale } from "@/hooks/useLocale";
 
 type AuthFormProps = {
   mode: "login" | "signup";
 };
 
+/**
+ * AuthForm — handles both login and signup flows.
+ *
+ * All Supabase auth operations are routed through backend API routes
+ * (/api/auth/signup, /api/auth/login, /api/auth/oauth) so that the
+ * secret service-role key is never exposed to the browser.
+ */
 export function AuthForm({ mode }: AuthFormProps) {
   const router = useRouter();
   const locale = useLocale();
@@ -36,15 +42,23 @@ export function AuthForm({ mode }: AuthFormProps) {
     setStatus(null);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
+      // Route through backend API to keep secret key server-side
+      const res = await fetch("/api/auth/oauth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: "google" }),
       });
-      if (error) throw error;
-      // Browser redirects to Google; no further action needed here.
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "OAuth sign-in failed.");
+      }
+
+      // Redirect the browser to the Google OAuth URL returned by the backend
+      if (data.url) {
+        window.location.href = data.url;
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : (locale === "en" ? "Google sign-in failed, please retry." : "Google 登录失败，请重试。");
       setStatus(msg);
@@ -62,21 +76,26 @@ export function AuthForm({ mode }: AuthFormProps) {
     setStatus(null);
 
     try {
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      if (!supabaseConfigured) {
         setStatus(locale === "en" ? "Auth system not configured. You can still generate a free preview in the Workbench." : "登录系统暂未配置。你仍可以在工作台生成一次免费预览。");
         return;
       }
 
-      const supabase = createSupabaseBrowserClient();
-      const result = isLogin
-        ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+      // Route through backend API to keep secret key server-side
+      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/signup";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-      if (result.error) {
-        throw result.error;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Action failed.");
       }
 
-      if (!isLogin && !result.data.session) {
+      if (!isLogin && data.needsConfirmation) {
         setStatus(locale === "en" ? "Sign up successful! Check your inbox and click the confirmation link to log in." : "注册成功，请检查邮箱并点击确认链接后再登录。");
         return;
       }
@@ -84,18 +103,7 @@ export function AuthForm({ mode }: AuthFormProps) {
       router.push("/dashboard");
     } catch (error) {
       const msg = error instanceof Error ? error.message : (locale === "en" ? "Action failed, please retry." : "操作失败，请重试。");
-      const translated = locale === "en"
-        ? (msg.includes("Invalid login credentials") ? "Incorrect email or password, please retry." :
-           msg.includes("Email not confirmed") ? "Email not verified — check your inbox." :
-           msg.includes("User already registered") ? "This email is already registered. Please log in instead." :
-           msg.includes("Password should be at least") ? "Password must be at least 6 characters." :
-           msg)
-        : (msg.includes("Invalid login credentials") ? "邮箱或密码不正确，请重试。" :
-           msg.includes("Email not confirmed") ? "邮箱尚未验证，请检查收件箱。" :
-           msg.includes("User already registered") ? "该邮箱已注册，请直接登录。" :
-           msg.includes("Password should be at least") ? "密码至少需要 6 位。" :
-           msg);
-      setStatus(translated);
+      setStatus(msg);
     } finally {
       setIsLoading(false);
     }
@@ -166,7 +174,11 @@ export function AuthForm({ mode }: AuthFormProps) {
           </label>
 
           {status ? (
-            <p className="rounded-lg border border-risk/30 bg-risk/10 px-3 py-2.5 text-sm text-risk">
+            <p className={`rounded-lg border px-3 py-2.5 text-sm ${
+              status.includes("成功") || status.includes("successful")
+                ? "border-brand/30 bg-brand/10 text-brand"
+                : "border-risk/30 bg-risk/10 text-risk"
+            }`}>
               {status}
             </p>
           ) : null}

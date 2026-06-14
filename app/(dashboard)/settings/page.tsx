@@ -17,6 +17,15 @@ const planLabelEn: Record<string, string> = {
   pro: "Pro", team: "Team", trial: "Trial",
 };
 
+/**
+ * SettingsPage — manage avatar, email, password, and session.
+ *
+ * All privileged Supabase operations (password update, email update,
+ * avatar upload + user metadata update) are routed through backend API
+ * routes so that the secret service-role key is never exposed to the
+ * browser. The Supabase browser client (publishable key only) is used
+ * solely for listening to auth state changes.
+ */
 export default function SettingsPage() {
   const router = useRouter();
   const locale = useLocale();
@@ -47,26 +56,36 @@ export default function SettingsPage() {
 
     let cleanup: (() => void) | undefined;
 
-    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
-      const supabase = createSupabaseBrowserClient();
-      async function loadUser() {
-        const { data } = await supabase.auth.getUser();
-        if (!data.user) { router.replace("/login"); return; }
-        const res = await fetch("/api/entitlements/check", { method: "POST", cache: "no-store" });
-        const ent = (await res.json()) as { plan?: string };
-        const avatarUrl = (data.user.user_metadata?.avatar_url as string | undefined) ?? null;
-        setUser({ email: data.user.email ?? "", plan: ent.plan ?? "free", avatarUrl, userId: data.user.id });
-        setAvatarPreview(avatarUrl);
-      }
-
-      void loadUser();
-
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        if (!session?.user) {
+    async function loadUser() {
+      try {
+        // Fetch user data from the backend API route
+        const res = await fetch("/api/auth/user", { cache: "no-store" });
+        const data = await res.json();
+        if (!data.user) {
           router.replace("/login");
           return;
         }
-        await loadUser();
+        setUser({
+          email: data.user.email ?? "",
+          plan: data.user.plan ?? "free",
+          avatarUrl: data.user.avatarUrl ?? null,
+          userId: data.user.id,
+        });
+        setAvatarPreview(data.user.avatarUrl ?? null);
+      } catch {
+        router.replace("/login");
+      }
+    }
+
+    void loadUser();
+
+    // Use the Supabase browser client (publishable key only) to listen
+    // for auth state changes and trigger a re-fetch from the backend.
+    import("@/lib/supabase-client").then(({ createSupabaseBrowserClient }) => {
+      const supabase = createSupabaseBrowserClient();
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+        void loadUser();
       });
 
       function onVisibilityChange() {
@@ -113,27 +132,23 @@ export default function SettingsPage() {
     setAvatarPreview(localUrl);
 
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
+      // Upload avatar via backend API route
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("userId", user.userId);
 
-      const ext = file.name.split(".").pop() ?? "jpg";
-      const path = `${user.userId}/avatar.${ext}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, file, { upsert: true, contentType: file.type });
-
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-      // Bust cache so the browser re-fetches
-      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { avatar_url: publicUrl }
+      const res = await fetch("/api/auth/avatar", {
+        method: "POST",
+        body: formData,
       });
-      if (updateError) throw updateError;
 
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Upload failed.");
+      }
+
+      const publicUrl = data.avatarUrl;
       setAvatarPreview(publicUrl);
       setUser((u) => u ? { ...u, avatarUrl: publicUrl } : u);
       setAvatarStatus({ ok: true, msg: locale === "en" ? "Avatar updated." : "头像已更新。" });
@@ -164,10 +179,16 @@ export default function SettingsPage() {
     setEmailLoading(true);
     setEmailStatus(null);
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.updateUser({ email: newEmail.trim() });
-      if (error) throw error;
+      // Route through backend API to keep secret key server-side
+      const res = await fetch("/api/auth/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Update failed.");
+      }
       setEmailStatus({ ok: true, msg: locale === "en" ? "Confirmation email sent. Click the link in your new inbox to confirm." : "确认邮件已发送，请在新邮箱中点击确认链接后生效。" });
       setNewEmail("");
     } catch (err) {
@@ -183,10 +204,16 @@ export default function SettingsPage() {
     setPwLoading(true);
     setPwStatus(null);
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
+      // Route through backend API to keep secret key server-side
+      const res = await fetch("/api/auth/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Update failed.");
+      }
       setPwStatus({ ok: true, msg: locale === "en" ? "Password updated successfully." : "密码已更新成功。" });
       setNewPassword("");
       setConfirmPassword("");
@@ -200,9 +227,8 @@ export default function SettingsPage() {
   async function logout() {
     setLogoutLoading(true);
     try {
-      const { createSupabaseBrowserClient } = await import("@/lib/supabase-client");
-      const supabase = createSupabaseBrowserClient();
-      await supabase.auth.signOut();
+      // Route through backend API to keep secret key server-side
+      await fetch("/api/auth/logout", { method: "POST" });
       router.replace("/login");
     } finally {
       setLogoutLoading(false);
