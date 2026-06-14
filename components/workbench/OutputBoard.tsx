@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code } from "lucide-react";
+import { ArrowRight, Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, WandSparkles, Eye, Code } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -13,9 +13,12 @@ type OutputBoardProps = {
   locale: Locale;
   canUseOutputs?: boolean;
   onLockedAction?: (reason: "copy" | "export" | "save" | "analyze" | "iterate") => void;
+  onGenerate?: () => void;
+  canGenerate?: boolean;
+  generateDisabledReason?: string | null;
 };
 
-export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs = true, onLockedAction }: OutputBoardProps) {
+export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs = true, onLockedAction, onGenerate, canGenerate = false, generateDisabledReason }: OutputBoardProps) {
   const copy = dashboardCopy[locale];
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -86,14 +89,30 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   };
 
   return (
-    <section className="panel min-h-[720px] min-w-0 overflow-hidden p-5">
+    <section className="panel min-h-[520px] min-w-0 overflow-hidden p-5">
       <div className="mb-5 flex flex-col gap-3 border-b border-hairline pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
-          <FileText className="h-4 w-4 text-fg" />
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
+          <FileText className="h-4 w-4 shrink-0 text-fg" />
           <h2 className="text-sm font-semibold text-fg">{copy.outputStep}</h2>
+          {generateDisabledReason ? (
+            <span className="hidden truncate text-xs text-amber-600 dark:text-amber-400 sm:inline">{generateDisabledReason}</span>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onGenerate ? (
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={!canGenerate}
+              title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
+              className="btn-primary focus-ring cursor-pointer shrink-0 px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
+              {copy.generate}
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          ) : null}
           {outputs.length > 0 ? (
             <>
               <button
@@ -107,14 +126,14 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
               <button
                 type="button"
                 onClick={downloadMarkdown}
-                className="btn-primary focus-ring cursor-pointer px-3 py-1.5 text-xs"
+                className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5" />
                 {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToExport : copy.markdown}
               </button>
             </>
           ) : null}
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-fg-muted" /> : null}
+          {isLoading && !onGenerate ? <Loader2 className="h-4 w-4 animate-spin text-fg-muted" /> : null}
         </div>
       </div>
 

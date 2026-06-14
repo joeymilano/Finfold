@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, ShieldCheck, WandSparkles } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { UsageMeter } from "@/components/billing/UsageMeter";
@@ -15,7 +15,7 @@ import { PersonaSelector } from "@/components/workbench/PersonaSelector";
 import { PlatformSelector } from "@/components/workbench/PlatformSelector";
 import type { ContentKit, KitOutput, MediaAsset } from "@/lib/content-schema";
 import type { GoalId } from "@/lib/goals";
-import { dashboardCopy, type Locale } from "@/lib/i18n";
+import type { Locale } from "@/lib/i18n";
 import { getStoredLocale } from "@/lib/theme";
 import type { PersonaId } from "@/lib/personas";
 import type { PlatformId } from "@/lib/platforms";
@@ -283,7 +283,6 @@ export function DashboardWorkbench() {
     trialUsed: false,
     locale
   });
-  const copy = dashboardCopy[locale];
 
   return (
     <div className="grid min-w-0 gap-6 pb-10">
@@ -308,13 +307,10 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      <section className="grid min-w-0 gap-5 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_320px_1fr]">
+      {/* Input + strategy side-by-side on md+, output below; all 3 cols on xl */}
+      <section className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-[320px_320px_1fr]">
         {/* Column 1 — Product assets */}
         <div className="grid min-w-0 content-start gap-4">
-          <div className="flex items-center gap-2 px-1">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
-            <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
-          </div>
           <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} />
           <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
         </div>
@@ -322,42 +318,24 @@ export function DashboardWorkbench() {
         {/* Column 2 — Strategy */}
         <div className="grid min-w-0 content-start gap-4">
           <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
-          <div className="flex items-center gap-2 px-1">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">2</span>
-            <h2 className="text-sm font-semibold text-fg">{copy.strategyStep}</h2>
-          </div>
           <PersonaSelector value={persona} onChange={setPersona} locale={locale} />
           <GoalSelector value={goal} onChange={setGoal} locale={locale} />
           <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} />
           <KitHistory kits={kits} />
         </div>
 
-        {/* Column 3 — Output (spans full width on < xl) */}
-        <div className="grid min-w-0 content-start gap-4 lg:col-span-2 xl:col-span-1">
-          <div className="flex items-center justify-between gap-3 px-1">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">3</span>
-                <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Platform Content Kit" : "平台资产包"}</h2>
-              </div>
-              {!canGenerate && generateDisabledReason ? (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
-                  {generateDisabledReason}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={() => void generateKit()}
-              disabled={!canGenerate}
-              title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
-              className="focus-ring btn-primary cursor-pointer inline-flex shrink-0 items-center justify-center gap-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
-              {copy.generate} <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-          <OutputBoard outputs={outputs} isLoading={isLoading} error={error} locale={locale} canUseOutputs={true} />
+        {/* Column 3 — Output: full width on md, own column on xl */}
+        <div className="min-w-0 md:col-span-2 xl:col-span-1">
+          <OutputBoard
+            outputs={outputs}
+            isLoading={isLoading}
+            error={error}
+            locale={locale}
+            canUseOutputs={true}
+            onGenerate={() => void generateKit()}
+            canGenerate={canGenerate}
+            generateDisabledReason={generateDisabledReason}
+          />
         </div>
       </section>
 
