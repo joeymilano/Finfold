@@ -151,7 +151,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
           </div>
 
           <h3 className="mb-1 text-base font-semibold text-fg">
-            {locale === "en" ? "Content OS is rebuilding your content…" : "Content OS 正在重构内容…"}
+            {locale === "en" ? "Finfold is rebuilding your content…" : "Finfold 正在重构内容…"}
           </h3>
           <p className="mb-8 max-w-xs text-xs leading-relaxed text-fg-muted">
             {locale === "en"
