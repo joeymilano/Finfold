@@ -293,7 +293,7 @@ export function DashboardWorkbench() {
           <div className="min-w-0">
             <p className="eyebrow">Finfold Workbench</p>
             <h1 className="mt-3 max-w-4xl break-words text-3xl font-black leading-[1.02] text-fg sm:text-4xl md:text-6xl">
-              {locale === "en" ? "Generate platform-native growth kits from your assets" : "从产品资产生成平台原生增长资产包"}
+              {locale === "en" ? "Workbench" : "创作台"}
             </h1>
             <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-fg-muted md:text-base">
               {locale === "en"
