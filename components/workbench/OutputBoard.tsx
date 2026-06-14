@@ -228,8 +228,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
 
               {/* View Rendering */}
               {mode === "preview" ? (
-                <div className="flex min-w-0 justify-center rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
-                  <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
+                <div className="min-w-0 overflow-hidden rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
+                  <div className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
                     {/* High Fidelity Simulated Preview */}
                     <SocialMockup
                       platform={output.platform}

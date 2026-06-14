@@ -313,7 +313,8 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(320px,0.8fr)_minmax(420px,1.2fr)] 2xl:grid-cols-[minmax(320px,0.82fr)_minmax(380px,0.95fr)_minmax(480px,1.35fr)]">
+      <section className="grid min-w-0 gap-5 lg:grid-cols-[300px_1fr] xl:grid-cols-[320px_320px_1fr]">
+        {/* Column 1 — Product assets */}
         <div className="grid min-w-0 content-start gap-4">
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
@@ -323,6 +324,7 @@ export function DashboardWorkbench() {
           <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
         </div>
 
+        {/* Column 2 — Strategy */}
         <div className="grid min-w-0 content-start gap-4">
           <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
           <div className="flex items-center gap-2 px-1">
@@ -335,7 +337,8 @@ export function DashboardWorkbench() {
           <KitHistory kits={kits} />
         </div>
 
-        <div className="grid min-w-0 content-start gap-4 xl:col-span-2 2xl:col-span-1">
+        {/* Column 3 — Output (spans full width on < xl) */}
+        <div className="grid min-w-0 content-start gap-4 lg:col-span-2 xl:col-span-1">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -353,7 +356,7 @@ export function DashboardWorkbench() {
               onClick={() => void generateKit()}
               disabled={!canGenerate}
               title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
-              className="focus-ring btn-primary inline-flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+              className="focus-ring btn-primary inline-flex shrink-0 items-center justify-center gap-2 text-sm disabled:opacity-50"
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4 text-accent" />}
               {copy.generate} <ArrowRight className="h-4 w-4" />
