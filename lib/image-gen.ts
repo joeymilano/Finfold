@@ -40,20 +40,32 @@ export async function generateImage(
   size: string = "1024x1024"
 ): Promise<ImageGenerationResult> {
   const url = `${imageApiBase()}/v1/images/generations`;
+  const apiKey = imageApiKey();
+  const model = imageModel();
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${imageApiKey()}`,
-    },
-    body: JSON.stringify({
-      model: imageModel(),
-      prompt,
-      n: 1,
-      size,
-    }),
-  });
+  console.log(`[ImageGen] Requesting: model=${model} size=${size} url=${url}`);
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        n: 1,
+        size,
+      }),
+      signal: AbortSignal.timeout(60_000), // 60s timeout
+    });
+  } catch (fetchError) {
+    const cause = fetchError instanceof Error ? fetchError.message : String(fetchError);
+    console.error(`[ImageGen] Fetch failed: ${cause}`);
+    throw new Error(`Image API fetch failed: ${cause}`);
+  }
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
