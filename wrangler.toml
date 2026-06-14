@@ -21,4 +21,7 @@ LETTA_EMBEDDING = "openai/text-embedding-3-small"
 # Stronger model for multi-platform structured generation (better JSON
 # adherence across all requested platforms). Must be a valid Letta handle.
 LETTA_GENERATION_MODEL = "anthropic/claude-haiku-4-5"
+# Image generation via Agnes AI (OpenAI-compatible /v1/images/generations)
+IMAGE_API_BASE = "https://apihub.agnes-ai.com"
+IMAGE_MODEL = "agnes-image-2.1-flash"
 NEXT_PUBLIC_ALLOW_MOCK = "false"

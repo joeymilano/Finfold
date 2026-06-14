@@ -228,7 +228,8 @@ Shape:
       "body": "fully formatted, copy-paste ready body copy with correct line breaks",
       "cta": "the single most important next action for the reader",
       "notes": "one specific actionable posting tip",
-      "strategy": "why this angle works for this platform and goal"
+      "strategy": "why this angle works for this platform and goal",
+      "imagePrompt": "a detailed English prompt for generating a cover image that visually represents this content. The image should be eye-catching, professional, and suitable for social media. Describe the visual composition, style, colors, and key elements. 50-100 words."
     }
   ]
 }`;
