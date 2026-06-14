@@ -89,7 +89,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   };
 
   return (
-    <section className="panel min-h-[520px] min-w-0 overflow-hidden p-5">
+    <section className="panel min-h-[480px] min-w-0 overflow-hidden p-5">
       <div className="mb-5 flex flex-col gap-3 border-b border-hairline pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>

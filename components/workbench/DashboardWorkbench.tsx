@@ -286,7 +286,7 @@ export function DashboardWorkbench() {
 
   return (
     <div className="grid min-w-0 gap-6 pb-10">
-      <section className="relative isolate min-w-0 overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
+      <section className="relative min-w-0 overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_20%,rgb(var(--brand)/0.18),transparent_30%),linear-gradient(135deg,rgb(var(--fg)/0.04),transparent_48%)]" />
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
@@ -307,25 +307,29 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      {/* Input + strategy side-by-side on md+, output below; all 3 cols on xl */}
-      <section className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-[320px_320px_1fr]">
-        {/* Column 1 — Product assets */}
-        <div className="grid min-w-0 content-start gap-4">
-          <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} />
-          <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
-        </div>
+      {/* 2-panel workbench: controls left, output right */}
+      <section className="grid min-w-0 gap-5 lg:grid-cols-[360px_1fr]">
 
-        {/* Column 2 — Strategy */}
+        {/* Left — stacked controls */}
         <div className="grid min-w-0 content-start gap-4">
           <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
+
+          {/* 产品 + 素材 sub-section */}
+          <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} />
+          <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
+
+          {/* Divider */}
+          <div className="border-t border-hairline" />
+
+          {/* 策略 sub-section */}
           <PersonaSelector value={persona} onChange={setPersona} locale={locale} />
           <GoalSelector value={goal} onChange={setGoal} locale={locale} />
           <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} />
           <KitHistory kits={kits} />
         </div>
 
-        {/* Column 3 — Output: full width on md, own column on xl */}
-        <div className="min-w-0 md:col-span-2 xl:col-span-1">
+        {/* Right — output board (sticky so it stays visible while scrolling controls) */}
+        <div className="min-w-0 lg:sticky lg:top-5 lg:self-start">
           <OutputBoard
             outputs={outputs}
             isLoading={isLoading}
@@ -337,6 +341,7 @@ export function DashboardWorkbench() {
             generateDisabledReason={generateDisabledReason}
           />
         </div>
+
       </section>
 
     </div>
