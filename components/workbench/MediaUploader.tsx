@@ -33,12 +33,12 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
   }
 
   return (
-    <section className="panel rounded-md p-4">
-      <div className="mb-3 flex items-center gap-2">
+    <section className="panel min-w-0 rounded-md p-4">
+      <div className="mb-3 flex min-w-0 items-center gap-2">
         <ImagePlus className="h-4 w-4 text-fg" />
-        <h2 className="text-sm font-black">{copy.mediaTitle}</h2>
+        <h2 className="min-w-0 break-words text-sm font-black">{copy.mediaTitle}</h2>
       </div>
-      <label className="focus-within:outline-fg flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-hairline bg-surface p-4 text-center transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2">
+      <label className="focus-within:outline-fg flex min-h-32 min-w-0 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-hairline bg-surface p-4 text-center transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2">
         <input
           type="file"
           multiple
@@ -47,14 +47,14 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
           onChange={(event) => void handleFiles(event.target.files)}
         />
         <Video className="mb-2 h-6 w-6 text-fg rk-pop" />
-        <span className="text-sm font-black">{copy.mediaUpload}</span>
-        <span className="mt-1 text-xs text-fg-muted">{copy.mediaNote}</span>
+        <span className="max-w-full break-words text-sm font-black">{copy.mediaUpload}</span>
+        <span className="mt-1 max-w-full break-words text-xs text-fg-muted">{copy.mediaNote}</span>
       </label>
       {assets.length > 0 ? (
         <div className="mt-3 grid gap-2">
           {assets.map((asset) => (
-            <div key={asset.id} className="flex items-center justify-between rounded-sm border border-hairline bg-surface px-3 py-2 text-xs font-bold shadow-panel">
-              <span className="truncate">{asset.name}</span>
+            <div key={asset.id} className="flex min-w-0 items-center justify-between gap-3 rounded-sm border border-hairline bg-surface px-3 py-2 text-xs font-bold shadow-panel">
+              <span className="min-w-0 truncate">{asset.name}</span>
               <span className="text-fg-muted">{asset.type}</span>
             </div>
           ))}

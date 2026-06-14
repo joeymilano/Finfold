@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award, ImageIcon } from "lucide-react";
+import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -89,31 +89,31 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   };
 
   return (
-    <section className="panel workbench-scroll min-h-[680px] p-5 xl:h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-4">
-      <div className="mb-5 flex flex-col gap-3 border-b border-hairline pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2.5">
+    <section className="panel workbench-scroll min-h-[520px] p-3 sm:p-5 xl:h-[min(860px,calc(100vh-128px))] xl:min-h-[680px] xl:overflow-y-auto xl:pr-4">
+      <div className="mb-4 flex flex-col gap-3 border-b border-hairline pb-4 sm:mb-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
           <FileText className="h-4 w-4 text-fg" />
-          <h2 className="text-sm font-semibold text-fg">{copy.outputStep}</h2>
+          <h2 className="min-w-0 break-words text-sm font-semibold text-fg">{copy.outputStep}</h2>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
           {outputs.length > 0 ? (
             <>
               <button
                 type="button"
                 onClick={() => void copyAll()}
-                className="btn-ghost focus-ring px-3 py-1.5 text-xs"
+                className="btn-ghost focus-ring min-w-0 px-3 py-1.5 text-xs"
               >
                 {copiedAll ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5 text-fg-muted" />}
-                {!canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
+                <span className="truncate">{!canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}</span>
               </button>
               <button
                 type="button"
                 onClick={downloadMarkdown}
-                className="btn-primary focus-ring px-3 py-1.5 text-xs"
+                className="btn-primary focus-ring min-w-0 px-3 py-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5" />
-                {!canUseOutputs ? copy.unlockToExport : copy.markdown}
+                <span className="truncate">{!canUseOutputs ? copy.unlockToExport : copy.markdown}</span>
               </button>
             </>
           ) : null}
@@ -126,7 +126,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
       ) : null}
 
       {isLoading ? (
-        <div className="relative flex min-h-[540px] flex-col items-center justify-center overflow-hidden rounded-xl border border-hairline bg-surface-2 p-8 text-center">
+        <div className="relative flex min-h-[420px] flex-col items-center justify-center overflow-hidden rounded-xl border border-hairline bg-surface-2 p-4 text-center sm:min-h-[540px] sm:p-8">
           {/* Scanning animation gradient */}
           <div className="absolute inset-x-0 top-0 h-40 rk-scan bg-gradient-to-b from-brand/15 via-brand/5 to-transparent" />
 
@@ -144,7 +144,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
           </p>
 
           {/* Steps */}
-          <div className="w-full max-w-xs space-y-3.5 rounded-xl border border-hairline bg-surface p-4 text-left shadow-panel">
+          <div className="w-full max-w-xs space-y-3.5 rounded-xl border border-hairline bg-surface p-3 text-left shadow-panel sm:p-4">
             <LoadingStep index={0} currentIndex={loadingStepIndex} label={locale === "en" ? "Analyzing core product positioning and audience preferences..." : "分析产品核心定位与受众偏好..."} />
             <LoadingStep index={1} currentIndex={loadingStepIndex} label={locale === "en" ? "Adapting to native publishing tone for each social channel..." : "适配各社交渠道原生发布调性..."} />
             <LoadingStep index={2} currentIndex={loadingStepIndex} label={locale === "en" ? "Reviewing brand compliance rules and prohibited expressions..." : "审查品牌合规规则与禁用表达词..."} />
@@ -154,7 +154,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
       ) : null}
 
       {outputs.length === 0 && !isLoading ? (
-        <div className="flex min-h-[540px] flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 p-8 text-center">
+        <div className="flex min-h-[420px] flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 p-4 text-center sm:min-h-[540px] sm:p-8">
           <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-brand">
             <Sparkles className="h-6 w-6" />
           </div>
@@ -165,7 +165,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
         </div>
       ) : null}
 
-      <div className="grid gap-5">
+      <div className="grid min-w-0 gap-4 sm:gap-5">
         {outputs.map((output) => {
           const platform = getPlatform(output.platform);
           const copied = copiedPlatform === output.platform;
@@ -174,8 +174,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
           const mode = viewModes[output.platform] ?? "preview"; // Default to premium simulated preview
 
           return (
-            <article key={output.platform} className="panel panel-hover p-4">
-              <div className="mb-4 flex items-start justify-between gap-3 border-b border-hairline pb-3.5">
+            <article key={output.platform} className="panel panel-hover min-w-0 p-3 sm:p-4">
+              <div className="mb-4 flex flex-col gap-3 border-b border-hairline pb-3.5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs font-semibold text-fg-muted">
                     <span className="flex h-5 w-5 items-center justify-center rounded-md bg-surface-2 text-fg">
@@ -184,44 +184,44 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                     {platform.label}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <h3 className="text-base font-semibold leading-tight text-fg">{output.title}</h3>
+                    <h3 className="min-w-0 break-words text-base font-semibold leading-tight text-fg">{output.title}</h3>
                     <span className="tag tag-success">{locale === "en" ? "Open" : "开放预览"}</span>
                     <span className="tag tag-neutral">{output.publishStatus ?? "draft"}</span>
                   </div>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:shrink-0 sm:grid-cols-none sm:flex sm:items-center">
                   {/* Toggle Preview vs Raw Mode */}
-                  <div className="inline-flex rounded-lg bg-surface-2 p-0.5">
+                  <div className="grid grid-cols-2 rounded-lg bg-surface-2 p-0.5 sm:inline-flex">
                     <button
                       type="button"
                       onClick={() => toggleViewMode(output.platform)}
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
                         mode === "preview" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
                       <Eye className="h-3 w-3" />
-                      {locale === "en" ? "Preview" : "模拟预览"}
+                      <span className="truncate">{locale === "en" ? "Preview" : "模拟预览"}</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => toggleViewMode(output.platform)}
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
                         mode === "raw" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
                       <Code className="h-3 w-3" />
-                      {locale === "en" ? "Raw" : "原始结构"}
+                      <span className="truncate">{locale === "en" ? "Raw" : "原始结构"}</span>
                     </button>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => void copyOutput(output)}
-                    className="btn-ghost focus-ring px-3 py-1.5 text-xs"
+                    className="btn-ghost focus-ring min-w-0 px-3 py-1.5 text-xs"
                   >
                     {copied ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5" />}
-                    {locked ? copy.unlockCopy : copied ? copy.copied : copy.copy}
+                    <span className="truncate">{locked ? copy.unlockCopy : copied ? copy.copied : copy.copy}</span>
                   </button>
                 </div>
               </div>
@@ -244,7 +244,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
 
               {/* View Rendering */}
               {mode === "preview" ? (
-                <div className="flex justify-center rounded-xl border border-hairline bg-surface-2 p-4">
+                <div className="flex min-w-0 justify-center rounded-xl border border-hairline bg-surface-2 p-2 sm:p-4">
                   <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
                     {/* High Fidelity Simulated Preview */}
                     <SocialMockup
@@ -344,12 +344,12 @@ function SocialMockup({
     case "product-hunt":
       return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "medium-substack":
-      return <NewsletterMockup title={title} body={body} cta={cta} />;
+      return <NewsletterMockup title={title} body={body} cta={cta} imageUrl={imageUrl} />;
     case "threads":
-      return <ThreadsMockup body={body} cta={cta} />;
+      return <ThreadsMockup body={body} cta={cta} imageUrl={imageUrl} />;
     case "x":
     default:
-      return <XMockup body={body} cta={cta} notes={notes} />;
+      return <XMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
   }
 }
 
@@ -406,7 +406,7 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
         </div>
 
         {/* Content detail */}
-        <div className="p-3.5 max-h-72 overflow-y-auto leading-relaxed">
+        <div className="max-h-72 overflow-y-auto p-3.5 leading-relaxed">
           <h1 className="text-sm font-bold text-slate-950 mb-2">{title}</h1>
           <p className="text-xs text-slate-800 whitespace-pre-wrap">{body}</p>
           {cta && <p className="mt-3 text-xs font-semibold text-rose-600">{cta}</p>}
@@ -419,8 +419,8 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
         </div>
 
         {/* Xiaohongshu Bottom Interaction Bar */}
-        <div className="flex items-center justify-between border-t border-slate-100 px-3.5 py-3 bg-white text-slate-500">
-          <div className="flex items-center gap-4 text-xs font-medium">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 bg-white px-3.5 py-3 text-slate-500">
+          <div className="flex flex-wrap items-center gap-3 text-xs font-medium sm:gap-4">
             <span className="flex items-center gap-1 hover:text-rose-500 cursor-pointer">
               <Heart className="h-4.5 w-4.5" />
               99+
@@ -434,7 +434,7 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
               Comment
             </span>
           </div>
-          <button type="button" className="rounded-full bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 text-xs font-bold transition-all">
+          <button type="button" className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-slate-800">
             Message
           </button>
         </div>
@@ -469,11 +469,11 @@ function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
             
             {/* Cover image or Grid Image placeholder */}
             {imageUrl ? (
-              <div className="mt-3 overflow-hidden rounded-sm border border-slate-100 w-56">
+              <div className="mt-3 w-full max-w-56 overflow-hidden rounded-sm border border-slate-100">
                 <img src={imageUrl} alt="Post cover" className="w-full object-cover" loading="lazy" />
               </div>
             ) : (
-            <div className="mt-3 grid grid-cols-3 gap-1.5 w-56">
+            <div className="mt-3 grid w-full max-w-56 grid-cols-3 gap-1.5">
               <div className="aspect-square rounded-sm bg-gradient-to-br from-indigo-500 to-cyan-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Image</div>
               <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Repurpose</div>
               <div className="aspect-square rounded-sm bg-gradient-to-br from-emerald-500 to-lime-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Growth</div>
@@ -558,7 +558,7 @@ function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; no
         )}
 
         {/* Engagement metrics */}
-        <div className="mt-4 border-y border-slate-100 py-3 flex items-center gap-5 text-xs text-slate-500 font-medium">
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-slate-100 py-3 text-xs font-medium text-slate-500">
           <span><strong className="text-slate-950">1,240</strong> Views</span>
           <span><strong className="text-slate-950">84</strong> Likes</span>
           <span><strong className="text-slate-950">12</strong> Reposts</span>
@@ -671,14 +671,14 @@ function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: str
         )}
 
         {/* Reaction count */}
-        <div className="mt-3 flex items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] text-slate-500">
+        <div className="mt-3 flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] text-slate-500">
           <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0A66C2] text-[8px] text-white">👍</span>
           <span>Sarah, Mike and 248 others</span>
-          <span className="ml-auto">37 comments</span>
+          <span className="sm:ml-auto">37 comments</span>
         </div>
 
         {/* Action bar */}
-        <div className="mt-1 flex items-center justify-between px-1 text-xs font-semibold text-slate-500">
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-x-3 px-1 text-xs font-semibold text-slate-500">
           <span className="flex items-center gap-1.5 py-1.5"><ThumbsUp className="h-4 w-4" /> Like</span>
           <span className="flex items-center gap-1.5 py-1.5"><MessageCircle className="h-4 w-4" /> Comment</span>
           <span className="flex items-center gap-1.5 py-1.5"><Repeat2 className="h-4 w-4" /> Repost</span>
@@ -711,7 +711,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
         <MoreHorizontal className="h-4 w-4 text-slate-500" />
       </div>
 
-      <div className="flex gap-2.5 px-3 py-3.5">
+      <div className="flex min-w-0 gap-2.5 px-3 py-3.5">
         {/* Vote rail */}
         <div className="flex flex-col items-center gap-0.5 pt-0.5 text-slate-400">
           <ArrowBigUp className="h-5 w-5" style={{ color: meta.accent }} />
@@ -721,7 +721,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 
         {/* Body column */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: meta.accent }}>{meta.tag}</span>
             <span>Posted by u/finfold_dev · 1h</span>
           </div>
@@ -730,6 +730,12 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 
           <div className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</div>
 
+          {imageUrl && (
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-100">
+              <img src={imageUrl} alt={title} className="w-full object-cover" loading="lazy" />
+            </div>
+          )}
+
           {cta && <p className="mt-2.5 text-[13px] font-semibold text-slate-600 italic">{cta}</p>}
 
           {notes && (
@@ -737,7 +743,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
           )}
 
           {/* Action row */}
-          <div className="mt-3 flex items-center gap-4 text-[11px] font-semibold text-slate-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-500">
             <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 184 Comments</span>
             <span className="flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> Share</span>
             <span className="flex items-center gap-1"><Bookmark className="h-3.5 w-3.5" /> Save</span>

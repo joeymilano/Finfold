@@ -22,15 +22,15 @@ export function PersonaSelector({ value, onChange, locale }: PersonaSelectorProp
   const copy = dashboardCopy[locale];
 
   return (
-    <section className="panel rounded-md p-4">
-      <div className="mb-3 flex items-center gap-2">
+    <section className="panel min-w-0 rounded-md p-4">
+      <div className="mb-3 flex min-w-0 items-center gap-2">
         <UsersRound className="h-4 w-4 text-fg" />
-        <h2 className="text-sm font-black">{copy.personaTitle}</h2>
+        <h2 className="min-w-0 break-words text-sm font-black">{copy.personaTitle}</h2>
       </div>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as PersonaId)}
-        className="focus-ring w-full rounded-sm border border-hairline bg-surface px-3 py-3 text-sm font-black shadow-panel"
+        className="focus-ring w-full min-w-0 rounded-sm border border-hairline bg-surface px-3 py-3 text-sm font-black shadow-panel"
       >
         {personas.map((persona) => (
           <option key={persona.id} value={persona.id}>
