@@ -340,18 +340,6 @@ button:disabled {
 .rk-pulse-dot { animation: rk-pulse-dot 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
 .rk-draw { animation: rk-draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
-/* Skeleton shimmer */
-@keyframes rk-shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.rk-shimmer {
-  background: linear-gradient(90deg, rgb(var(--surface-2)) 25%, rgb(var(--surface)) 50%, rgb(var(--surface-2)) 75%);
-  background-size: 200% 100%;
-  animation: rk-shimmer 1.6s ease-in-out infinite;
-}
-
 .rk-delay-1 { animation-delay: 80ms; }
 .rk-delay-2 { animation-delay: 160ms; }
 .rk-delay-3 { animation-delay: 240ms; }
@@ -395,4 +383,29 @@ button:disabled {
   letter-spacing: 0.08em;
   font-feature-settings: "palt" 1;
   text-rendering: geometricPrecision;
+}
+
+.workbench-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--brand) / 0.62) rgb(var(--surface-2) / 0.82);
+}
+
+.workbench-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.workbench-scroll::-webkit-scrollbar-track {
+  border-radius: 9999px;
+  background: rgb(var(--surface-2) / 0.82);
+}
+
+.workbench-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid rgb(var(--surface-2) / 0.82);
+  border-radius: 9999px;
+  background: rgb(var(--brand) / 0.62);
+}
+
+.workbench-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--brand-strong) / 0.78);
 }

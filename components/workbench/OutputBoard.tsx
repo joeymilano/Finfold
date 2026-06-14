@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, WandSparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
+import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -13,12 +13,9 @@ type OutputBoardProps = {
   locale: Locale;
   canUseOutputs?: boolean;
   onLockedAction?: (reason: "copy" | "export" | "save" | "analyze" | "iterate") => void;
-  onGenerate?: () => void;
-  canGenerate?: boolean;
-  generateDisabledReason?: string | null;
 };
 
-export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs = true, onLockedAction, onGenerate, canGenerate = false, generateDisabledReason }: OutputBoardProps) {
+export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs = true, onLockedAction }: OutputBoardProps) {
   const copy = dashboardCopy[locale];
   const [copiedPlatform, setCopiedPlatform] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -46,7 +43,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }, [isLoading]);
 
   async function copyOutput(output: KitOutput) {
-    if (output.locked || !canUseOutputs) {
+    if (!canUseOutputs) {
       onLockedAction?.("copy");
       return;
     }
@@ -59,7 +56,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   async function copyAll() {
-    if (!canUseOutputs || outputs.some((output) => output.locked)) {
+    if (!canUseOutputs) {
       onLockedAction?.("copy");
       return;
     }
@@ -70,7 +67,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   function downloadMarkdown() {
-    if (!canUseOutputs || outputs.some((output) => output.locked)) {
+    if (!canUseOutputs) {
       onLockedAction?.("export");
       return;
     }
@@ -79,61 +76,48 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `repurpose-content-kit-${new Date().toISOString().slice(0, 10)}.md`;
+    link.download = `finfold-content-kit-${new Date().toISOString().slice(0, 10)}.md`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
-  const setViewMode = (platformId: string, mode: "preview" | "raw") => {
-    setViewModes((prev) => ({ ...prev, [platformId]: mode }));
+  const toggleViewMode = (platformId: string) => {
+    setViewModes((prev) => ({
+      ...prev,
+      [platformId]: prev[platformId] === "raw" ? "preview" : "raw",
+    }));
   };
 
   return (
-    <section className="panel min-h-[480px] min-w-0 overflow-hidden p-5">
+    <section className="panel workbench-scroll min-h-[680px] p-5 xl:h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-4">
       <div className="mb-5 flex flex-col gap-3 border-b border-hairline pb-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
-          <FileText className="h-4 w-4 shrink-0 text-fg" />
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-fg text-[11px] font-bold text-bg">3</span>
+          <FileText className="h-4 w-4 text-fg" />
           <h2 className="text-sm font-semibold text-fg">{copy.outputStep}</h2>
-          {generateDisabledReason ? (
-            <span className="hidden truncate text-xs text-amber-600 dark:text-amber-400 sm:inline">{generateDisabledReason}</span>
-          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {onGenerate ? (
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={!canGenerate}
-              title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
-              className="btn-primary focus-ring cursor-pointer shrink-0 px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <WandSparkles className="h-3.5 w-3.5" />}
-              {copy.generate}
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          ) : null}
           {outputs.length > 0 ? (
             <>
               <button
                 type="button"
                 onClick={() => void copyAll()}
-                className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
+                className="btn-ghost focus-ring px-3 py-1.5 text-xs"
               >
                 {copiedAll ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5 text-fg-muted" />}
-                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
+                {!canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
               </button>
               <button
                 type="button"
                 onClick={downloadMarkdown}
-                className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
+                className="btn-primary focus-ring px-3 py-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5" />
-                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToExport : copy.markdown}
+                {!canUseOutputs ? copy.unlockToExport : copy.markdown}
               </button>
             </>
           ) : null}
-          {isLoading && !onGenerate ? <Loader2 className="h-4 w-4 animate-spin text-fg-muted" /> : null}
+          {isLoading ? <Loader2 className="h-4 w-4 animate-spin text-fg-muted" /> : null}
         </div>
       </div>
 
@@ -142,7 +126,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
       ) : null}
 
       {isLoading ? (
-        <div className="relative flex min-h-[620px] flex-col items-center justify-center overflow-hidden rounded-xl border border-hairline bg-surface-2 p-8 text-center">
+        <div className="relative flex min-h-[540px] flex-col items-center justify-center overflow-hidden rounded-xl border border-hairline bg-surface-2 p-8 text-center">
           {/* Scanning animation gradient */}
           <div className="absolute inset-x-0 top-0 h-40 rk-scan bg-gradient-to-b from-brand/15 via-brand/5 to-transparent" />
 
@@ -166,31 +150,18 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
             <LoadingStep index={2} currentIndex={loadingStepIndex} label={locale === "en" ? "Reviewing brand compliance rules and prohibited expressions..." : "审查品牌合规规则与禁用表达词..."} />
             <LoadingStep index={3} currentIndex={loadingStepIndex} label={locale === "en" ? "Reconstructing multi-platform content and CTA conversion points..." : "重构多平台内容与 CTA 转化点..."} />
           </div>
-
-          {/* Skeleton preview rows */}
-          <div className="mt-5 w-full max-w-xs space-y-2 opacity-60">
-            <div className="rk-shimmer h-3 w-full rounded-md" />
-            <div className="rk-shimmer h-3 w-4/5 rounded-md" />
-            <div className="rk-shimmer h-3 w-3/5 rounded-md" />
-          </div>
         </div>
       ) : null}
 
       {outputs.length === 0 && !isLoading ? (
-        <div className="flex min-h-[620px] flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 p-8 text-center">
-          <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface shadow-panel text-brand">
+        <div className="flex min-h-[540px] flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 p-8 text-center">
+          <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-brand">
             <Sparkles className="h-6 w-6" />
-            <span className="absolute -inset-px rounded-2xl ring-1 ring-brand/20" />
           </div>
           <p className="text-sm font-semibold text-fg">{copy.emptyTitle}</p>
-          <p className="mt-2 max-w-[280px] text-xs leading-relaxed text-fg-muted">
+          <p className="mt-1.5 max-w-sm text-xs leading-5 text-fg-muted">
             {copy.emptyBody}
           </p>
-          <div className="mt-6 flex items-center gap-2">
-            <span className="h-1 w-1 rounded-full bg-brand/40" />
-            <span className="h-1 w-6 rounded-full bg-brand/60" />
-            <span className="h-1 w-1 rounded-full bg-brand/40" />
-          </div>
         </div>
       ) : null}
 
@@ -198,13 +169,13 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
         {outputs.map((output) => {
           const platform = getPlatform(output.platform);
           const copied = copiedPlatform === output.platform;
-          const locked = output.locked || !canUseOutputs;
+          const locked = !canUseOutputs;
           const previewBody = locked ? createPreview(output.body) : output.body;
           const mode = viewModes[output.platform] ?? "preview"; // Default to premium simulated preview
 
           return (
-            <article key={output.platform} className="panel panel-hover min-w-0 p-4 transition-all duration-200">
-              <div className="mb-4 flex flex-col gap-3 border-b border-hairline pb-3.5 lg:flex-row lg:items-start lg:justify-between">
+            <article key={output.platform} className="panel panel-hover p-4">
+              <div className="mb-4 flex items-start justify-between gap-3 border-b border-hairline pb-3.5">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs font-semibold text-fg-muted">
                     <span className="flex h-5 w-5 items-center justify-center rounded-md bg-surface-2 text-fg">
@@ -214,18 +185,18 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold leading-tight text-fg">{output.title}</h3>
-                    {locked ? <span className="tag tag-warn">Preview</span> : null}
+                    <span className="tag tag-success">{locale === "en" ? "Open" : "开放预览"}</span>
                     <span className="tag tag-neutral">{output.publishStatus ?? "draft"}</span>
                   </div>
                 </div>
 
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2">
                   {/* Toggle Preview vs Raw Mode */}
                   <div className="inline-flex rounded-lg bg-surface-2 p-0.5">
                     <button
                       type="button"
-                      onClick={() => setViewMode(output.platform, "preview")}
-                      className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
+                      onClick={() => toggleViewMode(output.platform)}
+                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
                         mode === "preview" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
@@ -234,8 +205,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                     </button>
                     <button
                       type="button"
-                      onClick={() => setViewMode(output.platform, "raw")}
-                      className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
+                      onClick={() => toggleViewMode(output.platform)}
+                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
                         mode === "raw" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
@@ -247,7 +218,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   <button
                     type="button"
                     onClick={() => void copyOutput(output)}
-                    className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
+                    className="btn-ghost focus-ring px-3 py-1.5 text-xs"
                   >
                     {copied ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5" />}
                     {locked ? copy.unlockCopy : copied ? copy.copied : copy.copy}
@@ -257,7 +228,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
 
               {/* View Rendering */}
               {mode === "preview" ? (
-                <div className="flex min-w-0 justify-center rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
+                <div className="flex justify-center rounded-xl border border-hairline bg-surface-2 p-4">
                   <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
                     {/* High Fidelity Simulated Preview */}
                     <SocialMockup
@@ -316,7 +287,7 @@ function ContentBlock({ label, value, locked = false }: { label: string; value: 
       <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-fg">{value}</p>
       {locked ? (
         <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-xs font-medium text-warn">
-          Full body, CTA, notes, copy, export, and history will unlock after logging in and upgrading.
+          Showcase mode is open: full copy, CTA, notes, export, and analysis are available for review.
         </p>
       ) : null}
     </div>
@@ -833,7 +804,7 @@ function formatOutput(output: KitOutput, platformLabel: string): string {
 }
 
 function formatAllOutputs(outputs: KitOutput[]): string {
-  const header = `# Repurpose / 一鱼多吃 Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
+  const header = `# Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
   const body = outputs
     .map((output) => {
       const platform = getPlatform(output.platform);

@@ -1,8 +1,10 @@
 "use client";
 
+import { ArrowRight, CheckCircle2, Loader2, ShieldCheck, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { UsageMeter } from "@/components/billing/UsageMeter";
+import { ContentOSPreview } from "@/components/workbench/ContentOSPreview";
 import { addToast } from "@/components/ui/Toast";
 import { getBrandBrain, loadPersistedBrandBrain } from "@/lib/brand-brain";
 import { GoalSelector } from "@/components/workbench/GoalSelector";
@@ -10,18 +12,20 @@ import { IdeaInput } from "@/components/workbench/IdeaInput";
 import { KitHistory } from "@/components/workbench/KitHistory";
 import { MediaUploader } from "@/components/workbench/MediaUploader";
 import { OutputBoard } from "@/components/workbench/OutputBoard";
+import { PerformancePanel } from "@/components/workbench/PerformancePanel";
 import { PersonaSelector } from "@/components/workbench/PersonaSelector";
+import { QualityScorePanel } from "@/components/workbench/QualityScorePanel";
 import { PlatformSelector } from "@/components/workbench/PlatformSelector";
 import type { ContentKit, KitOutput, MediaAsset } from "@/lib/content-schema";
 import type { GoalId } from "@/lib/goals";
-import type { Locale } from "@/lib/i18n";
+import { dashboardCopy, type Locale } from "@/lib/i18n";
 import { getStoredLocale } from "@/lib/theme";
 import type { PersonaId } from "@/lib/personas";
 import type { PlatformId } from "@/lib/platforms";
 import { getGenerateDisabledReason } from "@/lib/workbench-gating";
 
 const starterIdea =
-  "Finfold helps lean product teams turn one launch note, product update, customer insight, or founder memo into clear platform-native drafts for social, community, newsletter, launch, and search channels.";
+  "Finfold is an AI content operations workspace for lean product teams. It turns one launch note, product update, customer insight, or founder memo into platform-native content kits for social, community, newsletter, launch, and search channels, with brand guardrails, quality scoring, scheduling, and performance feedback built in.";
 
 const defaultPlatforms: PlatformId[] = [
   "wechat",
@@ -37,7 +41,7 @@ const showcaseOutputs: KitOutput[] = [
   {
     platform: "x",
     title: "One launch note should not become seven manual rewrites",
-    body: "Most small teams do not have a content problem. They have a translation problem.\n\nA product update needs one version for builders, another for buyers, another for communities, another for search, and another for launch day.\n\nFinfold turns one source signal into channel-native growth drafts, keeping the strategy, CTA, and platform fit in one place.",
+    body: "Most small teams do not have a content problem. They have a translation problem.\n\nA product update needs one version for builders, another for buyers, another for communities, another for search, and another for launch day.\n\nFinfold turns one source signal into channel-native growth assets, then keeps the strategy, CTA, guardrails, and next iteration connected.",
     cta: "Try the workflow with one real product update and compare the output across channels.",
     notes: "Keep the first two lines sharp. Avoid broad AI-tool claims; lead with the operating pain.",
     strategy: "Use X for founder narrative, sharp contrast, and public iteration. The hook frames Finfold as an operating workflow, not a generic writing assistant.",
@@ -67,9 +71,9 @@ const showcaseOutputs: KitOutput[] = [
   {
     platform: "product-hunt",
     title: "Finfold — turn one product signal into a launch-ready content kit",
-    body: "Finfold helps lean teams convert one product update, founder memo, or customer insight into platform-native content for launch and growth channels.\n\nStart with one source brief, then review clear drafts for the channels that matter most.",
+    body: "Finfold helps lean teams convert one product update, founder memo, or customer insight into platform-native content for launch and growth channels.\n\nIt includes content generation, brand guardrails, quality scoring, scheduling, and a performance loop so the next kit improves from real signals.",
     cta: "Launch with a complete content kit instead of a blank posting calendar.",
-    notes: "Pair this with a short demo video and gallery images showing the Workbench and generated channel drafts.",
+    notes: "Pair this with a short demo video and three gallery images showing Workbench, Guardrails, and Performance Loop.",
     strategy: "Product Hunt copy should be concrete and scannable: what it is, who it is for, and why it helps launch day.",
     locked: false,
     publishStatus: "planned"
@@ -135,7 +139,7 @@ type Entitlement = {
 };
 
 export function DashboardWorkbench() {
-  const [locale, setLocale] = useState<Locale>("zh");
+  const [locale, setLocale] = useState<Locale>("en");
   // sync from global LocaleToggle
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -154,6 +158,7 @@ export function DashboardWorkbench() {
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [outputs, setOutputs] = useState<KitOutput[]>(showcaseOutputs);
   const [kits, setKits] = useState<ContentKit[]>([showcaseKit]);
+  const [activeKitId, setActiveKitId] = useState<string | null>("showcase-kit");
   const [allowance, setAllowance] = useState<Allowance>({ used: 0, limit: 50, plan: "showcase" });
   const [entitlement, setEntitlement] = useState<Entitlement>({
     authenticated: false,
@@ -221,7 +226,7 @@ export function DashboardWorkbench() {
         }
       }
 
-      // Load account-level brand memory when available, with localStorage fallback
+      // Load account-level Brand Brain when available, with localStorage fallback
       let brandBrain = getBrandBrain();
       if (entitlement.authenticated) {
         try {
@@ -258,6 +263,7 @@ export function DashboardWorkbench() {
       if (trialMode) {
         setEntitlement((current) => ({ ...current, trialAvailable: true, canUseOutputs: true, canAnalyze: true }));
       }
+      setActiveKitId(data.kit.id);
       setKits((current) => [data.kit!, ...current.filter((kit) => kit.id !== data.kit!.id)]);
       if (data.allowance) {
         setAllowance(data.allowance);
@@ -282,19 +288,44 @@ export function DashboardWorkbench() {
     trialUsed: false,
     locale
   });
+  const currentKit: ContentKit | null = outputs.length > 0
+    ? {
+        id: activeKitId ?? "draft-package",
+        ideaText,
+        goal,
+        persona,
+        platforms: selectedPlatforms,
+        mediaAssets,
+        outputs,
+        status: outputs.some((output) => output.locked) ? "preview" : "saved",
+        createdAt: new Date().toISOString()
+      }
+    : activeKitId
+      ? kits.find((kit) => kit.id === activeKitId) ?? null
+      : null;
+  const copy = dashboardCopy[locale];
 
   return (
-    <div className="grid min-w-0 gap-6 pb-10">
-      <section className="relative min-w-0 overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
+    <div className="grid gap-6 pb-10">
+      <section className="relative isolate overflow-hidden rounded-md border border-hairline bg-surface p-5 shadow-panel md:p-6">
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_20%,rgb(var(--brand)/0.18),transparent_30%),linear-gradient(135deg,rgb(var(--fg)/0.04),transparent_48%)]" />
-        <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="min-w-0">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
             <p className="eyebrow">Finfold Workbench</p>
-            <h1 className="mt-3 max-w-4xl break-words text-3xl font-black leading-[1.02] text-fg sm:text-4xl md:text-5xl">
-              {locale === "en" ? "Workbench" : "创作台"}
+            <h1 className="mt-3 max-w-4xl text-4xl font-black leading-[0.95] text-fg md:text-6xl">
+              {locale === "en" ? "Generate platform-native growth kits from your assets" : "从产品资产生成平台原生增长资产包"}
             </h1>
+            <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-fg-muted md:text-base">
+              {locale === "en"
+                ? "A live command surface for content operations: product assets, media context, platform-native copy, quality scoring, scheduling, guardrails, and performance loops are all open for review."
+                : "完整开放的内容运营指挥台：产品资产、素材上下文、平台原生内容、质量评分、排期、品牌规则和数据回流都可以直接查看。"}
+            </p>
           </div>
-          <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <span className="inline-flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2 font-semibold text-fg-muted">
+              <ShieldCheck className="h-4 w-4 text-brand-strong dark:text-brand" />
+              {entitlement.authenticated ? entitlement.plan : "Showcase"}
+            </span>
             <Link href="/packages" className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg">
               {locale === "en" ? "View Kits" : "查看套件"}
             </Link>
@@ -302,43 +333,93 @@ export function DashboardWorkbench() {
         </div>
       </section>
 
-      {/* 2-panel workbench: controls left, output right */}
-      <section className="grid min-w-0 gap-5 lg:grid-cols-[360px_1fr]">
-
-        {/* Left — stacked controls */}
-        <div className="grid min-w-0 content-start gap-4">
-          <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
-
-          {/* 产品 + 素材 sub-section */}
+      <section className="grid items-start gap-5 xl:grid-cols-[minmax(300px,0.95fr)_minmax(340px,1fr)] 2xl:grid-cols-[minmax(320px,0.9fr)_minmax(340px,0.95fr)_minmax(460px,1.25fr)]">
+        <div className="workbench-scroll grid content-start gap-4 xl:col-span-2 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1 2xl:col-span-1">
+          <div className="flex items-center gap-2 px-1">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
+            <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
+          </div>
           <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} />
           <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
+        </div>
 
-          {/* Divider */}
-          <div className="border-t border-hairline" />
-
-          {/* 策略 sub-section */}
+        <div className="workbench-scroll grid content-start gap-4 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1">
+          <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
+          <div className="flex items-center gap-2 px-1">
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">2</span>
+            <h2 className="text-sm font-semibold text-fg">{copy.strategyStep}</h2>
+          </div>
           <PersonaSelector value={persona} onChange={setPersona} locale={locale} />
           <GoalSelector value={goal} onChange={setGoal} locale={locale} />
           <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} />
           <KitHistory kits={kits} />
         </div>
 
-        {/* Right — output board (sticky so it stays visible while scrolling controls) */}
-        <div className="min-w-0 lg:sticky lg:top-5 lg:self-start">
-          <OutputBoard
-            outputs={outputs}
-            isLoading={isLoading}
-            error={error}
-            locale={locale}
-            canUseOutputs={true}
-            onGenerate={() => void generateKit()}
-            canGenerate={canGenerate}
-            generateDisabledReason={generateDisabledReason}
-          />
+        <div className="grid content-start gap-4">
+          <div className="flex items-center justify-between gap-3 px-1">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">3</span>
+                <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Platform Content Kit" : "平台资产包"}</h2>
+              </div>
+              {!canGenerate && generateDisabledReason ? (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                  {generateDisabledReason}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => void generateKit()}
+              disabled={!canGenerate}
+              title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
+              className="focus-ring btn-primary inline-flex items-center justify-center gap-2 text-sm disabled:opacity-50"
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4 text-accent" />}
+              {copy.generate} <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+          <OutputBoard outputs={outputs} isLoading={isLoading} error={error} locale={locale} canUseOutputs={true} />
         </div>
-
       </section>
 
+      {outputs.length > 0 && !isLoading && (
+        <QualityScorePanel outputs={outputs} brain={getBrandBrain()} locale={locale} />
+      )}
+
+      <PerformancePanel kit={currentKit} locale={locale} canAnalyze={true} />
+
+      <ContentOSPreview locale={locale} />
+
+      <section className="rounded-lg border border-hairline bg-surface p-5 shadow-panel">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-fg">{outputs.some((output) => output.locked) ? copy.trialReady : copy.readyTitle}</p>
+            <p className="mt-1 text-sm leading-6 text-fg-muted">
+              {outputs.some((output) => output.locked) ? copy.trialDescription : copy.readyDescription}
+            </p>
+          </div>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <ReadinessCard label={copy.readinessLabels[0]} value={ideaText.trim().length + ""} ready={ideaText.trim().length >= 160} state={ideaText.trim().length >= 160 ? copy.readinessStates.ready : copy.readinessStates.improve} />
+            <ReadinessCard label={copy.readinessLabels[1]} value={selectedPlatforms.length + ""} ready={selectedPlatforms.length >= 5} state={selectedPlatforms.length >= 5 ? copy.readinessStates.ready : copy.readinessStates.improve} />
+            <ReadinessCard label={copy.readinessLabels[2]} value={mediaAssets.length + ""} ready={mediaAssets.length > 0} state={mediaAssets.length > 0 ? copy.readinessStates.ready : copy.readinessStates.improve} />
+            <ReadinessCard label={copy.readinessLabels[3]} value={outputs.length + ""} ready={outputs.length > 0} state={outputs.length > 0 ? copy.readinessStates.ready : copy.readinessStates.waiting} />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ReadinessCard({ label, value, ready, state }: { label: string; value: string; ready: boolean; state: string }) {
+  return (
+    <div className="min-w-20 rounded-md border border-hairline bg-surface-2 p-3">
+      <div className="flex items-center justify-center gap-1">
+        <CheckCircle2 className={ready ? "h-3.5 w-3.5 text-brand-strong dark:text-brand" : "h-3.5 w-3.5 text-fg-muted"} />
+        <p className="text-[11px] font-semibold text-fg-muted">{label}</p>
+      </div>
+      <p className="mt-1 text-lg font-semibold text-fg tabular">{value}</p>
+      <p className={ready ? "mt-1 text-[10px] font-semibold text-brand-strong dark:text-brand" : "mt-1 text-[10px] font-semibold text-fg-muted"}>{state}</p>
     </div>
   );
 }
