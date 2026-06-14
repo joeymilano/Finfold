@@ -168,7 +168,7 @@ export default function CalendarPage() {
       <section className="panel p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Publishing Calendar</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{locale === "en" ? "Publishing Calendar" : "发布日历"}</p>
             <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-fg leading-tight">{t.title}</h1>
             <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-6 text-fg-muted">{t.subtitle}</p>
           </div>

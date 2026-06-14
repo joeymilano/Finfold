@@ -78,7 +78,7 @@ export default function AssetsPage() {
       <section className="panel p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Product Assets</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{locale === "en" ? "Product Assets" : "产品资产"}</p>
             <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-fg leading-tight">
               {locale === "en" ? "Asset Library" : "产品资产库"}
             </h1>
@@ -236,7 +236,7 @@ export default function AssetsPage() {
       <section className="panel p-5">
         <div className="flex items-center justify-between border-b border-hairline pb-3 mb-4">
           <div>
-            <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Platform fit</p>
+            <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider">{locale === "en" ? "Platform fit" : "平台适配度"}</p>
             <h2 className="mt-1 text-base font-bold text-fg">
               {locale === "en" ? "Platform coverage gaps" : "平台资产覆盖缺口"}
             </h2>

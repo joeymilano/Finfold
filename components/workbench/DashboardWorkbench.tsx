@@ -23,8 +23,10 @@ import type { PersonaId } from "@/lib/personas";
 import type { PlatformId } from "@/lib/platforms";
 import { getGenerateDisabledReason } from "@/lib/workbench-gating";
 
-const starterIdea =
-  "Finfold is an AI content operations workspace for lean product teams. It turns one launch note, product update, customer insight, or founder memo into platform-native content kits for social, community, newsletter, launch, and search channels, with brand guardrails, quality scoring, scheduling, and performance feedback built in.";
+const starterIdeaByLocale: Record<Locale, string> = {
+  zh: "Finfold 是一个面向精简产品团队的 AI 内容运营工作台。它可以把一份发布说明、产品更新、客户洞察或创始人备忘录，转化成适配社交、社群、Newsletter、发布和搜索渠道的平台原生内容包，并内置品牌规则、质量评分、排期和表现反馈。",
+  en: "Finfold is an AI content operations workspace for lean product teams. It turns one launch note, product update, customer insight, or founder memo into platform-native content kits for social, community, newsletter, launch, and search channels, with brand guardrails, quality scoring, scheduling, and performance feedback built in."
+};
 
 const defaultPlatforms: PlatformId[] = [
   "wechat",
@@ -111,7 +113,7 @@ const showcaseOutputs: KitOutput[] = [
 
 const showcaseKit: ContentKit = {
   id: "showcase-kit",
-  ideaText: starterIdea,
+  ideaText: starterIdeaByLocale.zh,
   goal: "lead-gen",
   persona: "ai-saas",
   platforms: defaultPlatforms,
@@ -150,7 +152,7 @@ export function DashboardWorkbench() {
     window.addEventListener("finfold-locale-change", onLocaleChange);
     return () => window.removeEventListener("finfold-locale-change", onLocaleChange);
   }, []);
-  const [ideaText, setIdeaText] = useState(starterIdea);
+  const [ideaText, setIdeaText] = useState(starterIdeaByLocale.zh);
   const [goal, setGoal] = useState<GoalId>("lead-gen");
   const [persona, setPersona] = useState<PersonaId>("ai-saas");
   const [selectedPlatforms, setSelectedPlatforms] = useState<PlatformId[]>(defaultPlatforms);
@@ -188,6 +190,13 @@ export function DashboardWorkbench() {
   useEffect(() => {
     void loadKits();
   }, [loadKits]);
+
+  useEffect(() => {
+    setIdeaText((current) => {
+      const defaults = Object.values(starterIdeaByLocale);
+      return defaults.includes(current) ? starterIdeaByLocale[locale] : current;
+    });
+  }, [locale]);
 
   useEffect(() => {
     function onVisibilityChange() {
@@ -310,7 +319,7 @@ export function DashboardWorkbench() {
         <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_20%,rgb(var(--brand)/0.18),transparent_30%),linear-gradient(135deg,rgb(var(--fg)/0.04),transparent_48%)]" />
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="eyebrow">Finfold Workbench</p>
+            <p className="eyebrow">{locale === "en" ? "Finfold Workbench" : "Finfold 创作台"}</p>
             <h1 className="mt-3 max-w-4xl text-4xl font-black leading-[0.95] text-fg md:text-6xl">
               {locale === "en" ? "Workbench" : "创作台"}
             </h1>
@@ -334,7 +343,7 @@ export function DashboardWorkbench() {
         </div>
 
         <div className="workbench-scroll grid content-start gap-4 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1">
-          <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} />
+          <UsageMeter used={allowance.used} limit={allowance.limit} plan={allowance.plan} locale={locale} />
           <div className="flex items-center gap-2 px-1">
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">2</span>
             <h2 className="text-sm font-semibold text-fg">{copy.strategyStep}</h2>
@@ -342,7 +351,7 @@ export function DashboardWorkbench() {
           <PersonaSelector value={persona} onChange={setPersona} locale={locale} />
           <GoalSelector value={goal} onChange={setGoal} locale={locale} />
           <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} />
-          <KitHistory kits={kits} />
+          <KitHistory kits={kits} locale={locale} />
         </div>
 
         <div className="grid content-start gap-4">

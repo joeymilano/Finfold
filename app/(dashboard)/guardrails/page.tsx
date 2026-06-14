@@ -187,7 +187,7 @@ export default function GuardrailsPage() {
       <section className="panel p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Brand Guardrails</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{locale === "en" ? "Brand Guardrails" : "品牌规则"}</p>
             <h1 className="mt-1.5 text-2xl sm:text-3xl font-bold text-fg leading-tight">{t.pageTitle}</h1>
             <p className="mt-2.5 max-w-2xl text-xs sm:text-sm leading-6 text-fg-muted">{t.pageDesc}</p>
           </div>
@@ -311,7 +311,7 @@ export default function GuardrailsPage() {
                 </div>
                 <h2 className="mt-4 text-base font-bold text-fg flex items-center gap-1.5">
                   {displayTitle}
-                  {isInitial && <span className="tag tag-neutral text-[9px]">System</span>}
+                  {isInitial && <span className="tag tag-neutral text-[9px]">{locale === "en" ? "System" : "系统"}</span>}
                 </h2>
                 <p className="mt-2.5 text-xs sm:text-sm leading-6 text-fg-muted">{displayDetail}</p>
               </div>
@@ -329,7 +329,7 @@ export default function GuardrailsPage() {
       <section className="panel p-5">
         <div className="flex items-center justify-between border-b border-hairline pb-3 mb-4">
           <div>
-            <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider">Commercial license notes</p>
+            <p className="text-xs font-semibold text-fg-muted uppercase tracking-wider">{locale === "en" ? "Commercial license notes" : "商用授权说明"}</p>
             <h2 className="mt-1 text-base font-bold text-fg">{t.licenseTitle}</h2>
           </div>
           <ShieldCheck className="h-5 w-5 text-brand" />

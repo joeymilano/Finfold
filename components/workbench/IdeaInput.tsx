@@ -20,7 +20,7 @@ export function IdeaInput({ value, onChange, locale }: IdeaInputProps) {
           <Lightbulb className="h-4 w-4 text-fg" />
           <h2 className="text-sm font-black">{copy.inputStep}</h2>
         </div>
-        <span className="text-xs text-fg-muted">{value.length} chars</span>
+        <span className="text-xs text-fg-muted">{locale === "zh" ? `${value.length} 字符` : `${value.length} chars`}</span>
       </div>
       <textarea
         value={value}

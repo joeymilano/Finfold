@@ -36,7 +36,7 @@ const EMPTY_METRIC: MetricValue = {
 
 const labels = {
   zh: {
-    eyebrow: "Performance",
+    eyebrow: "表现数据",
     title: "发布数据回流",
     subtitle: "先手动录入每个平台的结果，Finfold 会计算转化表现，并给下一轮内容提出迭代方向。",
     empty: "生成内容包后，这里会出现每个平台的数据录入口。",
@@ -57,7 +57,10 @@ const labels = {
     shares: "转发",
     leads: "线索",
     signups: "注册",
-    revenue: "收入"
+    revenue: "收入",
+    wins: "有效信号",
+    problems: "问题",
+    next: "下一步"
   },
   en: {
     eyebrow: "Performance",
@@ -81,7 +84,10 @@ const labels = {
     shares: "Shares",
     leads: "Leads",
     signups: "Signups",
-    revenue: "Revenue"
+    revenue: "Revenue",
+    wins: "Wins",
+    problems: "Problems",
+    next: "Next"
   }
 } as const;
 
@@ -282,9 +288,9 @@ export function PerformancePanel({ kit, locale, canAnalyze, onLockedAction }: Pe
           <h3 className="text-lg font-black">{copy.suggestions}</h3>
           <p className="mt-2 text-sm font-semibold leading-6 text-fg-muted">{report.summary}</p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <ReportList title="Wins" items={report.wins} />
-            <ReportList title="Problems" items={report.problems} />
-            <ReportList title="Next" items={report.nextActions} />
+            <ReportList title={copy.wins} items={report.wins} />
+            <ReportList title={copy.problems} items={report.problems} />
+            <ReportList title={copy.next} items={report.nextActions} />
           </div>
         </div>
       ) : null}

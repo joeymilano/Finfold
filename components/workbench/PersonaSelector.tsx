@@ -34,7 +34,7 @@ export function PersonaSelector({ value, onChange, locale }: PersonaSelectorProp
       >
         {personas.map((persona) => (
           <option key={persona.id} value={persona.id}>
-            {locale === "zh" ? persona.label : englishPersonaLabels[persona.id]} — {persona.description}
+            {locale === "zh" ? persona.label : englishPersonaLabels[persona.id]} — {locale === "zh" ? persona.descriptionZh : persona.description}
           </option>
         ))}
       </select>

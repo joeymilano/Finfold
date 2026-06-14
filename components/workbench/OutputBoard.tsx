@@ -49,7 +49,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
     }
 
     const platform = getPlatform(output.platform);
-    const text = formatOutput(output, platform.label);
+    const text = formatOutput(output, platform.label, locale);
     await navigator.clipboard.writeText(text);
     setCopiedPlatform(output.platform);
     window.setTimeout(() => setCopiedPlatform(null), 1600);
@@ -61,7 +61,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
       return;
     }
 
-    await navigator.clipboard.writeText(formatAllOutputs(outputs));
+    await navigator.clipboard.writeText(formatAllOutputs(outputs, locale));
     setCopiedAll(true);
     window.setTimeout(() => setCopiedAll(false), 1600);
   }
@@ -72,7 +72,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
       return;
     }
 
-    const blob = new Blob([formatAllOutputs(outputs)], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([formatAllOutputs(outputs, locale)], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -255,12 +255,13 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                       notes={locked ? copy.lockedNotesPreview : output.notes}
                       locked={locked}
                       imageUrl={output.imageUrl}
+                      locale={locale}
                     />
                   </div>
                 </div>
               ) : (
                 <div className="grid gap-3 text-sm leading-6">
-                  <ContentBlock label={copy.body} value={previewBody} locked={locked} />
+                  <ContentBlock label={copy.body} value={previewBody} locked={locked} locale={locale} />
                   <ContentBlock label={copy.cta} value={locked ? copy.lockedCtaPreview : output.cta} />
                   <ContentBlock label={copy.notes} value={locked ? copy.lockedNotesPreview : output.notes} />
                   <ContentBlock label={copy.strategy} value={locked ? createPreview(output.strategy) : output.strategy} />
@@ -297,14 +298,14 @@ function LoadingStep({ label, index, currentIndex }: { label: string; index: num
   );
 }
 
-function ContentBlock({ label, value, locked = false }: { label: string; value: string; locked?: boolean }) {
+function ContentBlock({ label, value, locked = false, locale = "en" }: { label: string; value: string; locked?: boolean; locale?: Locale }) {
   return (
     <div className="panel-inset p-3.5">
       <p className="text-[10px] font-bold uppercase tracking-wider text-fg-muted">{label}</p>
       <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-fg">{value}</p>
       {locked ? (
         <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-xs font-medium text-warn">
-          Showcase mode is open: full copy, CTA, notes, export, and analysis are available for review.
+          {locale === "zh" ? "展示模式已开放全文、转化动作、备注、导出和分析能力，可直接检查完整效果。" : "Showcase mode is open: full copy, CTA, notes, export, and analysis are available for review."}
         </p>
       ) : null}
     </div>
@@ -318,7 +319,8 @@ function SocialMockup({
   body,
   cta,
   notes,
-  imageUrl
+  imageUrl,
+  locale
 }: {
   platform: string;
   title: string;
@@ -327,40 +329,41 @@ function SocialMockup({
   notes: string;
   locked: boolean;
   imageUrl?: string;
+  locale: Locale;
 }) {
   switch (platform) {
     case "xiaohongshu":
-      return <XiaohongshuMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <XiaohongshuMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
     case "moments":
-      return <MomentsMockup body={body} cta={cta} imageUrl={imageUrl} />;
+      return <MomentsMockup body={body} cta={cta} imageUrl={imageUrl} locale={locale} />;
     case "wechat":
-      return <WechatMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <WechatMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
     case "linkedin":
-      return <LinkedInMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <LinkedInMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
     case "reddit":
     case "hacker-news":
     case "indie-hackers":
-      return <RedditMockup platform={platform} title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <RedditMockup platform={platform} title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
     case "product-hunt":
-      return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
     case "medium-substack":
-      return <NewsletterMockup title={title} body={body} cta={cta} imageUrl={imageUrl} />;
+      return <NewsletterMockup title={title} body={body} cta={cta} imageUrl={imageUrl} locale={locale} />;
     case "threads":
-      return <ThreadsMockup body={body} cta={cta} imageUrl={imageUrl} />;
+      return <ThreadsMockup body={body} cta={cta} imageUrl={imageUrl} locale={locale} />;
     case "x":
     default:
-      return <XMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
+      return <XMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} locale={locale} />;
   }
 }
 
 // ── Xiaohongshu (RED) — cover image + note detail ──────────────────
-function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
+function XiaohongshuMockup({ title, body, cta, notes, imageUrl, locale }: { title: string; body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   return (
       <div className="flex flex-col bg-white">
         {/* Xiaohongshu simulated navigation */}
         <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs text-slate-800 font-semibold">
-          <span className="text-slate-400">Back</span>
-          <span className="text-slate-900 font-bold">Note Detail</span>
+          <span className="text-slate-400">{locale === "zh" ? "返回" : "Back"}</span>
+          <span className="text-slate-900 font-bold">{locale === "zh" ? "笔记详情" : "Note Detail"}</span>
           <Share2 className="h-4 w-4 text-slate-700" />
         </div>
 
@@ -384,7 +387,7 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
               小红书 封面
             </span>
             <h4 className="text-lg font-bold leading-snug px-3 line-clamp-3">{title}</h4>
-            <p className="mt-2 text-[10px] text-white/80 font-medium">FINFOLD NATIVE PREVIEW</p>
+            <p className="mt-2 text-[10px] text-white/80 font-medium">{locale === "zh" ? "FINFOLD 原生预览" : "FINFOLD NATIVE PREVIEW"}</p>
           </div>
         </div>
         )}
@@ -396,12 +399,12 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
               红
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-950">Growth_Hacker</p>
-              <p className="text-[10px] text-slate-400">Shanghai · Just now</p>
+              <p className="text-xs font-bold text-slate-950">{locale === "zh" ? "增长笔记" : "Growth_Hacker"}</p>
+              <p className="text-[10px] text-slate-400">{locale === "zh" ? "上海 · 刚刚" : "Shanghai · Just now"}</p>
             </div>
           </div>
           <button type="button" className="rounded-full bg-rose-500 px-3.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-rose-600 transition-colors">
-            Follow
+            {locale === "zh" ? "关注" : "Follow"}
           </button>
         </div>
 
@@ -427,15 +430,15 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
             </span>
             <span className="flex items-center gap-1 hover:text-yellow-500 cursor-pointer">
               <Star className="h-4.5 w-4.5" />
-              Save
+              {locale === "zh" ? "收藏" : "Save"}
             </span>
             <span className="flex items-center gap-1 hover:text-blue-500 cursor-pointer">
               <MessageCircle className="h-4.5 w-4.5" />
-              Comment
+              {locale === "zh" ? "评论" : "Comment"}
             </span>
           </div>
           <button type="button" className="rounded-full bg-slate-900 hover:bg-slate-800 text-white px-3 py-1.5 text-xs font-bold transition-all">
-            Message
+            {locale === "zh" ? "私信" : "Message"}
           </button>
         </div>
       </div>
@@ -443,13 +446,13 @@ function XiaohongshuMockup({ title, body, cta, notes, imageUrl }: { title: strin
   }
 
 // ── WeChat Moments (朋友圈) — single post detail ───────────────────
-function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; imageUrl?: string }) {
+function MomentsMockup({ body, cta, imageUrl, locale }: { body: string; cta: string; imageUrl?: string; locale: Locale }) {
   return (
       <div className="flex flex-col bg-[#EDEDED] text-slate-900 pb-3">
         {/* Top Header */}
         <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 font-semibold">
-          <span className="text-slate-400">Back</span>
-          <span className="text-slate-900 font-bold">Detail</span>
+          <span className="text-slate-400">{locale === "zh" ? "返回" : "Back"}</span>
+          <span className="text-slate-900 font-bold">{locale === "zh" ? "详情" : "Detail"}</span>
           <MoreHorizontal className="h-4 w-4 text-slate-700" />
         </div>
 
@@ -457,11 +460,11 @@ function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
         <div className="bg-white p-4.5 flex gap-3.5">
           {/* Left Avatar */}
           <div className="h-10 w-10 rounded bg-indigo-600 flex items-center justify-center shrink-0 font-bold text-white text-sm shadow-sm">
-            ME
+            {locale === "zh" ? "我" : "ME"}
           </div>
           {/* Right Area */}
           <div className="flex-1 min-w-0">
-            <h4 className="text-sm font-semibold text-[#576B95]">Moments Growth OS</h4>
+            <h4 className="text-sm font-semibold text-[#576B95]">{locale === "zh" ? "朋友圈增长记录" : "Moments Growth OS"}</h4>
             <div className="mt-2 text-sm text-slate-950 leading-relaxed whitespace-pre-wrap">
               {body}
             </div>
@@ -474,15 +477,15 @@ function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
               </div>
             ) : (
             <div className="mt-3 grid grid-cols-3 gap-1.5 w-56">
-              <div className="aspect-square rounded-sm bg-gradient-to-br from-indigo-500 to-cyan-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Image</div>
-              <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Repurpose</div>
-              <div className="aspect-square rounded-sm bg-gradient-to-br from-emerald-500 to-lime-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Growth</div>
+              <div className="aspect-square rounded-sm bg-gradient-to-br from-indigo-500 to-cyan-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">{locale === "zh" ? "图片" : "Image"}</div>
+              <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">{locale === "zh" ? "复用" : "Repurpose"}</div>
+              <div className="aspect-square rounded-sm bg-gradient-to-br from-emerald-500 to-lime-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">{locale === "zh" ? "增长" : "Growth"}</div>
             </div>
             )}
 
             {/* Time & Action Button */}
             <div className="mt-3.5 flex items-center justify-between">
-              <span className="text-[11px] text-[#7F7F7F]">1 min ago · Web</span>
+              <span className="text-[11px] text-[#7F7F7F]">{locale === "zh" ? "1 分钟前 · 网页端" : "1 min ago · Web"}</span>
               <span className="rounded bg-[#F7F7F7] px-2 py-0.5 text-xs font-bold text-[#576B95] border border-slate-100 hover:bg-slate-100 cursor-pointer">
                 ..
               </span>
@@ -492,10 +495,10 @@ function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
             <div className="mt-2.5 rounded-sm bg-[#F7F7F7] p-2 text-xs border border-slate-100">
               <div className="flex items-center gap-1 border-b border-slate-200 pb-1.5 mb-1.5 text-[#576B95] font-semibold">
                 <ThumbsUp className="h-3 w-3" />
-                Sarah, Mike, Alex, Jenny
+                {locale === "zh" ? "小林、Mike、Alex、Jenny" : "Sarah, Mike, Alex, Jenny"}
               </div>
               <div>
-                <p className="text-slate-800"><span className="font-semibold text-[#576B95]">Tom:</span> This content kit is incredibly well-crafted — already shared it!</p>
+                <p className="text-slate-800"><span className="font-semibold text-[#576B95]">Tom:</span> {locale === "zh" ? "这个内容包很完整，已经转发给团队了。" : "This content kit is incredibly well-crafted — already shared it!"}</p>
               </div>
             </div>
           </div>
@@ -505,13 +508,13 @@ function MomentsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
 }
 
 // ── X / Twitter — single post detail ───────────────────────────────
-function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; notes: string; imageUrl?: string }) {
+function XMockup({ body, cta, notes, imageUrl, locale }: { body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       {/* Twitter simulated nav */}
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs text-slate-800 font-semibold">
-        <span className="text-slate-400">Back</span>
-        <span className="text-slate-900 font-bold">Post</span>
+        <span className="text-slate-400">{locale === "zh" ? "返回" : "Back"}</span>
+        <span className="text-slate-900 font-bold">{locale === "zh" ? "帖子" : "Post"}</span>
         <Globe className="h-4 w-4 text-slate-500" />
       </div>
 
@@ -527,7 +530,7 @@ function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; no
                 <span className="text-sm font-bold text-slate-950 leading-none">Finfold</span>
                 <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] text-white">✓</span>
               </div>
-              <p className="text-xs text-slate-500">@finfold · Just now</p>
+              <p className="text-xs text-slate-500">@finfold · {locale === "zh" ? "刚刚" : "Just now"}</p>
             </div>
           </div>
           <MoreHorizontal className="h-4 w-4 text-slate-400" />
@@ -559,9 +562,9 @@ function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; no
 
         {/* Engagement metrics */}
         <div className="mt-4 border-y border-slate-100 py-3 flex items-center gap-5 text-xs text-slate-500 font-medium">
-          <span><strong className="text-slate-950">1,240</strong> Views</span>
-          <span><strong className="text-slate-950">84</strong> Likes</span>
-          <span><strong className="text-slate-950">12</strong> Reposts</span>
+          <span><strong className="text-slate-950">1,240</strong> {locale === "zh" ? "浏览" : "Views"}</span>
+          <span><strong className="text-slate-950">84</strong> {locale === "zh" ? "喜欢" : "Likes"}</span>
+          <span><strong className="text-slate-950">12</strong> {locale === "zh" ? "转发" : "Reposts"}</span>
         </div>
 
         {/* Action icons */}
@@ -577,7 +580,7 @@ function XMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; no
 }
 
 // ── WeChat Official Account (公众号) — long-form article ────────────
-function WechatMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
+function WechatMockup({ title, body, cta, notes, imageUrl, locale }: { title: string; body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       {/* WeChat article nav */}
@@ -596,7 +599,7 @@ function WechatMockup({ title, body, cta, notes, imageUrl }: { title: string; bo
           <div className="flex h-7 w-7 items-center justify-center rounded bg-[#07C160] text-xs font-bold text-white">公</div>
           <div className="leading-tight">
             <p className="text-xs font-medium text-[#576B95]">Finfold 增长笔记</p>
-            <p className="text-[10px] text-slate-400">Just now · 北京</p>
+            <p className="text-[10px] text-slate-400">{locale === "zh" ? "刚刚 · 北京" : "Just now · Beijing"}</p>
           </div>
         </div>
 
@@ -630,13 +633,13 @@ function WechatMockup({ title, body, cta, notes, imageUrl }: { title: string; bo
 }
 
 // ── LinkedIn — professional feed post ──────────────────────────────
-function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: string; notes: string; imageUrl?: string }) {
+function LinkedInMockup({ body, cta, notes, imageUrl, locale }: { body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       {/* LinkedIn nav */}
       <div className="flex items-center justify-between border-b border-slate-100 bg-[#F4F2EE] px-3.5 py-2.5 text-xs font-semibold text-slate-700">
         <span className="font-bold text-[#0A66C2]">in</span>
-        <span className="text-slate-500">Feed</span>
+        <span className="text-slate-500">{locale === "zh" ? "动态" : "Feed"}</span>
         <MoreHorizontal className="h-4 w-4 text-slate-500" />
       </div>
 
@@ -646,12 +649,12 @@ function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: str
           <div className="flex items-center gap-2.5">
             <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#0A66C2] text-sm font-bold text-white">FF</div>
             <div className="leading-tight">
-              <p className="text-sm font-semibold text-slate-900">Finfold Founder</p>
-              <p className="text-[11px] text-slate-500">Building AI growth tooling · 1st</p>
-              <p className="text-[11px] text-slate-400">Just now · 🌐</p>
+              <p className="text-sm font-semibold text-slate-900">{locale === "zh" ? "Finfold 创始人" : "Finfold Founder"}</p>
+              <p className="text-[11px] text-slate-500">{locale === "zh" ? "正在构建 AI 增长工具 · 1 度" : "Building AI growth tooling · 1st"}</p>
+              <p className="text-[11px] text-slate-400">{locale === "zh" ? "刚刚 · 🌐" : "Just now · 🌐"}</p>
             </div>
           </div>
-          <span className="text-sm font-semibold text-[#0A66C2]">+ Follow</span>
+          <span className="text-sm font-semibold text-[#0A66C2]">{locale === "zh" ? "+ 关注" : "+ Follow"}</span>
         </div>
 
         {/* Post body */}
@@ -673,16 +676,16 @@ function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: str
         {/* Reaction count */}
         <div className="mt-3 flex items-center gap-1.5 border-b border-slate-100 pb-2 text-[11px] text-slate-500">
           <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#0A66C2] text-[8px] text-white">👍</span>
-          <span>Sarah, Mike and 248 others</span>
-          <span className="ml-auto">37 comments</span>
+          <span>{locale === "zh" ? "Sarah、Mike 等 248 人" : "Sarah, Mike and 248 others"}</span>
+          <span className="ml-auto">{locale === "zh" ? "37 条评论" : "37 comments"}</span>
         </div>
 
         {/* Action bar */}
         <div className="mt-1 flex items-center justify-between px-1 text-xs font-semibold text-slate-500">
-          <span className="flex items-center gap-1.5 py-1.5"><ThumbsUp className="h-4 w-4" /> Like</span>
-          <span className="flex items-center gap-1.5 py-1.5"><MessageCircle className="h-4 w-4" /> Comment</span>
-          <span className="flex items-center gap-1.5 py-1.5"><Repeat2 className="h-4 w-4" /> Repost</span>
-          <span className="flex items-center gap-1.5 py-1.5"><Send className="h-4 w-4" /> Send</span>
+          <span className="flex items-center gap-1.5 py-1.5"><ThumbsUp className="h-4 w-4" /> {locale === "zh" ? "赞" : "Like"}</span>
+          <span className="flex items-center gap-1.5 py-1.5"><MessageCircle className="h-4 w-4" /> {locale === "zh" ? "评论" : "Comment"}</span>
+          <span className="flex items-center gap-1.5 py-1.5"><Repeat2 className="h-4 w-4" /> {locale === "zh" ? "转发" : "Repost"}</span>
+          <span className="flex items-center gap-1.5 py-1.5"><Send className="h-4 w-4" /> {locale === "zh" ? "发送" : "Send"}</span>
         </div>
       </div>
     </div>
@@ -690,13 +693,13 @@ function LinkedInMockup({ body, cta, notes, imageUrl }: { body: string; cta: str
 }
 
 // ── Reddit / HN / Indie Hackers — discussion thread post ───────────
-function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platform: string; title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
+function RedditMockup({ platform, title, body, cta, notes, imageUrl, locale }: { platform: string; title: string; body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   const meta =
     platform === "hacker-news"
-      ? { brand: "Hacker News", accent: "#FF6600", sub: "news.ycombinator.com", tag: "Show HN" }
+      ? { brand: "Hacker News", accent: "#FF6600", sub: "news.ycombinator.com", tag: locale === "zh" ? "展示 HN" : "Show HN" }
       : platform === "indie-hackers"
-        ? { brand: "Indie Hackers", accent: "#0E2439", sub: "indiehackers.com", tag: "Milestone" }
-        : { brand: "Reddit", accent: "#FF4500", sub: "r/SideProject", tag: "Discussion" };
+        ? { brand: "Indie Hackers", accent: "#0E2439", sub: "indiehackers.com", tag: locale === "zh" ? "里程碑" : "Milestone" }
+        : { brand: "Reddit", accent: "#FF4500", sub: "r/SideProject", tag: locale === "zh" ? "讨论" : "Discussion" };
 
   return (
     <div className="flex flex-col bg-white">
@@ -723,7 +726,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: meta.accent }}>{meta.tag}</span>
-            <span>Posted by u/finfold_dev · 1h</span>
+            <span>{locale === "zh" ? "由 u/finfold_dev 发布 · 1 小时前" : "Posted by u/finfold_dev · 1h"}</span>
           </div>
 
           <h3 className="mt-2 text-sm font-bold leading-snug text-slate-900">{title}</h3>
@@ -744,9 +747,9 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 
           {/* Action row */}
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-500">
-            <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 184 Comments</span>
-            <span className="flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> Share</span>
-            <span className="flex items-center gap-1"><Bookmark className="h-3.5 w-3.5" /> Save</span>
+            <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 184 {locale === "zh" ? "条评论" : "Comments"}</span>
+            <span className="flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> {locale === "zh" ? "分享" : "Share"}</span>
+            <span className="flex items-center gap-1"><Bookmark className="h-3.5 w-3.5" /> {locale === "zh" ? "保存" : "Save"}</span>
           </div>
         </div>
       </div>
@@ -755,7 +758,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 }
 
 // ── Product Hunt — launch card ─────────────────────────────────────
-function ProductHuntMockup({ title, body, cta, notes, imageUrl }: { title: string; body: string; cta: string; notes: string; imageUrl?: string }) {
+function ProductHuntMockup({ title, body, cta, notes, imageUrl, locale }: { title: string; body: string; cta: string; notes: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       {/* Nav */}
@@ -785,7 +788,7 @@ function ProductHuntMockup({ title, body, cta, notes, imageUrl }: { title: strin
 
         {/* Topic pills */}
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {["Marketing", "Artificial Intelligence", "SaaS"].map((t) => (
+          {(locale === "zh" ? ["市场营销", "人工智能", "SaaS"] : ["Marketing", "Artificial Intelligence", "SaaS"]).map((t) => (
             <span key={t} className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-medium text-slate-600">{t}</span>
           ))}
         </div>
@@ -800,7 +803,7 @@ function ProductHuntMockup({ title, body, cta, notes, imageUrl }: { title: strin
         {/* Maker comment */}
         <div className="mt-3.5 rounded-xl border border-slate-100 bg-slate-50 p-3">
           <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-[#DA552F]">
-            <Award className="h-3.5 w-3.5" /> MAKER COMMENT
+            <Award className="h-3.5 w-3.5" /> {locale === "zh" ? "创始人评论" : "MAKER COMMENT"}
           </div>
           <div className="max-h-56 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</div>
         </div>
@@ -816,12 +819,12 @@ function ProductHuntMockup({ title, body, cta, notes, imageUrl }: { title: strin
 }
 
 // ── Medium / Substack — article reader ─────────────────────────────
-function NewsletterMockup({ title, body, cta, imageUrl }: { title: string; body: string; cta: string; imageUrl?: string }) {
+function NewsletterMockup({ title, body, cta, imageUrl, locale }: { title: string; body: string; cta: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
         <span className="font-serif text-base font-bold text-slate-900">M</span>
-        <span className="text-slate-500">Story</span>
+        <span className="text-slate-500">{locale === "zh" ? "文章" : "Story"}</span>
         <Bookmark className="h-4 w-4 text-slate-500" />
       </div>
 
@@ -831,7 +834,7 @@ function NewsletterMockup({ title, body, cta, imageUrl }: { title: string; body:
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">FF</div>
           <div className="text-xs leading-tight">
             <p className="font-semibold text-slate-800">Finfold</p>
-            <p className="text-slate-400">6 min read · Just now</p>
+            <p className="text-slate-400">{locale === "zh" ? "阅读约 6 分钟 · 刚刚" : "6 min read · Just now"}</p>
           </div>
         </div>
         <div className="mt-4 whitespace-pre-wrap font-serif text-[15px] leading-7 text-slate-800">{body}</div>
@@ -850,12 +853,12 @@ function NewsletterMockup({ title, body, cta, imageUrl }: { title: string; body:
 }
 
 // ── Threads — casual short post ────────────────────────────────────
-function ThreadsMockup({ body, cta, imageUrl }: { body: string; cta: string; imageUrl?: string }) {
+function ThreadsMockup({ body, cta, imageUrl, locale }: { body: string; cta: string; imageUrl?: string; locale: Locale }) {
   return (
     <div className="flex flex-col bg-white">
       <div className="flex items-center justify-between border-b border-slate-100 px-3.5 py-2.5 text-xs font-semibold text-slate-700">
         <span className="text-slate-400">←</span>
-        <span className="font-bold text-slate-900">Thread</span>
+        <span className="font-bold text-slate-900">{locale === "zh" ? "串文" : "Thread"}</span>
         <MoreHorizontal className="h-4 w-4 text-slate-500" />
       </div>
       <div className="px-4 py-3.5">
@@ -863,7 +866,7 @@ function ThreadsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">@</div>
           <div className="leading-tight">
             <p className="text-sm font-semibold text-slate-900">finfold</p>
-            <p className="text-[11px] text-slate-400">Just now</p>
+            <p className="text-[11px] text-slate-400">{locale === "zh" ? "刚刚" : "Just now"}</p>
           </div>
         </div>
         <div className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-slate-900">{body}</div>
@@ -887,16 +890,22 @@ function ThreadsMockup({ body, cta, imageUrl }: { body: string; cta: string; ima
   );
 }
 
-function formatOutput(output: KitOutput, platformLabel: string): string {
+function formatOutput(output: KitOutput, platformLabel: string, locale: Locale): string {
+  if (locale === "zh") {
+    return `${platformLabel}\n\n标题：${output.title}\n\n正文：\n${output.body}\n\n转化动作：${output.cta}\n\n注意事项：${output.notes}\n\n平台策略：${output.strategy}`;
+  }
+
   return `${platformLabel}\n\nTitle: ${output.title}\n\nBody:\n${output.body}\n\nCTA: ${output.cta}\n\nNotes: ${output.notes}\n\nStrategy: ${output.strategy}`;
 }
 
-function formatAllOutputs(outputs: KitOutput[]): string {
-  const header = `# Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
+function formatAllOutputs(outputs: KitOutput[], locale: Locale): string {
+  const header = locale === "zh"
+    ? `# Finfold 内容包\n\n生成时间：${new Date().toLocaleString()}`
+    : `# Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
   const body = outputs
     .map((output) => {
       const platform = getPlatform(output.platform);
-      return `## ${platform.label}\n\n${formatOutput(output, platform.label)}`;
+      return `## ${platform.label}\n\n${formatOutput(output, platform.label, locale)}`;
     })
     .join("\n\n---\n\n");
 

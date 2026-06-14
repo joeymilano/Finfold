@@ -13,7 +13,7 @@ const copy = {
     memory: "品牌语气记忆",
     experiment: "内容实验分数",
     conversion: "收入线索",
-    signal: "Learning loop active"
+    signal: "学习回路已开启"
   },
   en: {
     title: "Content growth loop",
@@ -48,7 +48,7 @@ export function ContentOSPreview({ locale }: { locale: Locale }) {
       <div className="pointer-events-none absolute inset-x-0 top-16 h-12 rk-scan bg-[linear-gradient(90deg,transparent,rgb(var(--brand)/0.45),transparent)] opacity-70" />
 
       <div className="max-w-[80%]">
-        <p className="text-xs font-black uppercase text-fg-muted">System preview</p>
+        <p className="text-xs font-black uppercase text-fg-muted">{locale === "zh" ? "系统预览" : "System preview"}</p>
         <h2 className="mt-1 text-2xl font-black leading-none">{c.title}</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-fg-muted">{c.subtitle}</p>
       </div>

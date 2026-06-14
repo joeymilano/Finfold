@@ -42,7 +42,7 @@ export default function BillingPage() {
 
       {/* Header */}
       <div className="border-b border-hairline pb-6">
-        <p className="eyebrow">Pricing & Billing</p>
+        <p className="eyebrow">{locale === "en" ? "Pricing & Billing" : "价格与账单"}</p>
         <h1 className="mt-1.5 text-3xl font-bold text-fg">
           {locale === "en" ? "Hire your AI marketing employee" : "雇一个 AI 营销员工"}
         </h1>

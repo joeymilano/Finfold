@@ -248,7 +248,7 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl grid gap-6 pb-10">
       <div className="border-b border-hairline pb-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">Account</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">{locale === "en" ? "Account" : "账号"}</p>
         <h1 className="mt-1.5 text-3xl font-bold text-fg">{locale === "en" ? "Account Settings" : "账号设置"}</h1>
         <p className="mt-2 text-sm text-fg-muted">{locale === "en" ? "Manage your avatar, login email, password, and account security." : "管理你的头像、登录邮箱、密码和账号安全。"}</p>
       </div>

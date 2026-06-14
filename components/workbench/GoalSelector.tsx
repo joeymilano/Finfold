@@ -41,7 +41,7 @@ export function GoalSelector({ value, onChange, locale }: GoalSelectorProps) {
             >
               <span className="block text-sm font-semibold">{locale === "zh" ? goal.label : englishGoalLabels[goal.id]}</span>
               <span className={`mt-1 block text-xs leading-5 ${selected ? "text-white/70" : "text-fg-muted"}`}>
-                {goal.description}
+                {locale === "zh" ? goal.descriptionZh : goal.description}
               </span>
             </button>
           );
