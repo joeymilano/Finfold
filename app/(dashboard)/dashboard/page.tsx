@@ -1,5 +1,5 @@
-import { OperatingDashboard } from "@/components/app-shell/OperatingDashboard";
+import { redirect } from "next/navigation";
 
 export default function DashboardPage() {
-  return <OperatingDashboard />;
+  redirect("/workbench");
 }

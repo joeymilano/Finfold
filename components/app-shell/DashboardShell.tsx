@@ -3,14 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Bot,
-  CalendarDays,
   CreditCard,
   FileStack,
-  Gauge,
-  Library,
   Settings,
-  ShieldCheck,
   WandSparkles
 } from "lucide-react";
 import { FishLogo } from "@/components/app-shell/FishLogo";
@@ -24,13 +19,8 @@ import { brand } from "@/lib/brand";
 import { getStoredLocale, type Locale } from "@/lib/theme";
 
 const navItemDefs = [
-  { href: "/dashboard", zh: "运营态势", en: "Dashboard", descZh: "增长驾驶舱", descEn: "Command view", icon: Gauge },
   { href: "/workbench", zh: "内容生产区", en: "Workbench", descZh: "生成与编辑", descEn: "Generate", icon: WandSparkles },
   { href: "/packages", zh: "内容套件", en: "Content Kits", descZh: "历史记录", descEn: "History", icon: FileStack },
-  { href: "/agents", zh: "自动化流程", en: "Agents", descZh: "Agent 指挥中心", descEn: "Automation", icon: Bot },
-  { href: "/assets", zh: "产品资产库", en: "Assets", descZh: "素材与资产", descEn: "Media & Files", icon: Library },
-  { href: "/calendar", zh: "内容排期", en: "Calendar", descZh: "发布日历", descEn: "Publish Plan", icon: CalendarDays },
-  { href: "/guardrails", zh: "品牌规则", en: "Guardrails", descZh: "品牌与合规", descEn: "Brand Rules", icon: ShieldCheck },
   { href: "/billing", zh: "订阅与额度", en: "Billing", descZh: "计划与用量", descEn: "Plans & Usage", icon: CreditCard },
   { href: "/settings", zh: "偏好设置", en: "Settings", descZh: "账号与偏好", descEn: "Preferences", icon: Settings },
 ];

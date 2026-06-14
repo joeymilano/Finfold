@@ -3,27 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bot,
-  CalendarDays,
   CreditCard,
   FileStack,
-  Gauge,
-  Library,
   Settings,
-  ShieldCheck,
   WandSparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/hooks/useLocale";
 
 const primaryTabs = [
-  { href: "/dashboard", zh: "态势", en: "Dash", icon: Gauge },
   { href: "/workbench", zh: "生产", en: "Build", icon: WandSparkles },
   { href: "/packages", zh: "套件", en: "Kits", icon: FileStack },
-  { href: "/agents", zh: "流程", en: "Agents", icon: Bot },
-  { href: "/assets", zh: "资产", en: "Assets", icon: Library },
-  { href: "/calendar", zh: "排期", en: "Plan", icon: CalendarDays },
-  { href: "/guardrails", zh: "规则", en: "Rules", icon: ShieldCheck },
   { href: "/billing", zh: "订阅", en: "Plans", icon: CreditCard },
   { href: "/settings", zh: "设置", en: "Prefs", icon: Settings },
 ];
