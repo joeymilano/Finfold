@@ -51,7 +51,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }));
 
   return (
-    <div className="min-h-screen bg-bg text-fg">
+    <div className="min-h-screen w-full overflow-x-hidden bg-bg text-fg">
       <div className="pointer-events-none fixed inset-0 -z-10 bg-[radial-gradient(circle_at_18%_8%,rgb(var(--brand)/0.18),transparent_28%),radial-gradient(circle_at_86%_4%,rgb(var(--accent)/0.14),transparent_24%),linear-gradient(180deg,rgb(var(--surface-2)/0.34),transparent_42%)]" />
       {/* Mobile fixed top header */}
       <MobileHeader />
@@ -59,7 +59,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
       {/* Mobile fixed bottom tab bar */}
       <MobileTabBar />
 
-      <div className="mx-auto max-w-[1680px] lg:grid lg:grid-cols-[280px_1fr]">
+      <div className="mx-auto w-full max-w-[1680px] lg:grid lg:grid-cols-[280px_1fr]">
         {/* Sidebar — desktop only */}
         <aside className="hidden flex-col border-r border-hairline bg-surface/88 backdrop-blur-xl lg:flex lg:min-h-screen">
           {/* Logo + toggles */}
@@ -94,7 +94,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {/* Main content */}
         {/* pt-14 on mobile = clear fixed header; pb-20 = clear fixed tab bar */}
-        <main className="min-w-0 overflow-x-hidden px-4 pt-16 pb-20 md:px-6 lg:px-8 lg:pt-5 lg:pb-10">
+        <main className="w-full max-w-full min-w-0 overflow-x-hidden px-4 pt-16 pb-20 md:px-6 lg:px-8 lg:pt-5 lg:pb-10">
           {children}
         </main>
       </div>
