@@ -1,10 +1,9 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Loader2, ShieldCheck, WandSparkles } from "lucide-react";
+import { ArrowRight, Loader2, WandSparkles } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { UsageMeter } from "@/components/billing/UsageMeter";
-import { ContentOSPreview } from "@/components/workbench/ContentOSPreview";
 import { addToast } from "@/components/ui/Toast";
 import { getBrandBrain, loadPersistedBrandBrain } from "@/lib/brand-brain";
 import { GoalSelector } from "@/components/workbench/GoalSelector";
@@ -313,19 +312,10 @@ export function DashboardWorkbench() {
           <div>
             <p className="eyebrow">Finfold Workbench</p>
             <h1 className="mt-3 max-w-4xl text-4xl font-black leading-[0.95] text-fg md:text-6xl">
-              {locale === "en" ? "Generate platform-native growth kits from your assets" : "从产品资产生成平台原生增长资产包"}
+              {locale === "en" ? "Workbench" : "创作台"}
             </h1>
-            <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-fg-muted md:text-base">
-              {locale === "en"
-                ? "A live command surface for content operations: product assets, media context, platform-native copy, quality scoring, scheduling, guardrails, and performance loops are all open for review."
-                : "完整开放的内容运营指挥台：产品资产、素材上下文、平台原生内容、质量评分、排期、品牌规则和数据回流都可以直接查看。"}
-            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2 font-semibold text-fg-muted">
-              <ShieldCheck className="h-4 w-4 text-brand-strong dark:text-brand" />
-              {entitlement.authenticated ? entitlement.plan : "Showcase"}
-            </span>
             <Link href="/packages" className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg">
               {locale === "en" ? "View Kits" : "查看套件"}
             </Link>
@@ -388,38 +378,6 @@ export function DashboardWorkbench() {
       )}
 
       <PerformancePanel kit={currentKit} locale={locale} canAnalyze={true} />
-
-      <ContentOSPreview locale={locale} />
-
-      <section className="rounded-lg border border-hairline bg-surface p-5 shadow-panel">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-fg">{outputs.some((output) => output.locked) ? copy.trialReady : copy.readyTitle}</p>
-            <p className="mt-1 text-sm leading-6 text-fg-muted">
-              {outputs.some((output) => output.locked) ? copy.trialDescription : copy.readyDescription}
-            </p>
-          </div>
-          <div className="grid grid-cols-4 gap-2 text-center">
-            <ReadinessCard label={copy.readinessLabels[0]} value={ideaText.trim().length + ""} ready={ideaText.trim().length >= 160} state={ideaText.trim().length >= 160 ? copy.readinessStates.ready : copy.readinessStates.improve} />
-            <ReadinessCard label={copy.readinessLabels[1]} value={selectedPlatforms.length + ""} ready={selectedPlatforms.length >= 5} state={selectedPlatforms.length >= 5 ? copy.readinessStates.ready : copy.readinessStates.improve} />
-            <ReadinessCard label={copy.readinessLabels[2]} value={mediaAssets.length + ""} ready={mediaAssets.length > 0} state={mediaAssets.length > 0 ? copy.readinessStates.ready : copy.readinessStates.improve} />
-            <ReadinessCard label={copy.readinessLabels[3]} value={outputs.length + ""} ready={outputs.length > 0} state={outputs.length > 0 ? copy.readinessStates.ready : copy.readinessStates.waiting} />
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ReadinessCard({ label, value, ready, state }: { label: string; value: string; ready: boolean; state: string }) {
-  return (
-    <div className="min-w-20 rounded-md border border-hairline bg-surface-2 p-3">
-      <div className="flex items-center justify-center gap-1">
-        <CheckCircle2 className={ready ? "h-3.5 w-3.5 text-brand-strong dark:text-brand" : "h-3.5 w-3.5 text-fg-muted"} />
-        <p className="text-[11px] font-semibold text-fg-muted">{label}</p>
-      </div>
-      <p className="mt-1 text-lg font-semibold text-fg tabular">{value}</p>
-      <p className={ready ? "mt-1 text-[10px] font-semibold text-brand-strong dark:text-brand" : "mt-1 text-[10px] font-semibold text-fg-muted"}>{state}</p>
     </div>
   );
 }
