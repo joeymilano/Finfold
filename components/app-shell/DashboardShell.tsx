@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Bot,
+  CreditCard,
   FileStack,
   Gauge,
   MessageSquare,
@@ -27,6 +28,7 @@ const navItemDefs = [
   { href: "/brand-memory", zh: "品牌记忆", en: "Brand Memory", descZh: "产品与语气", descEn: "Product memory", icon: MessageSquare },
   { href: "/guardrails", zh: "品牌规则", en: "Brand Rules", descZh: "禁用词与规范", descEn: "Rules", icon: ShieldCheck },
   { href: "/agents", zh: "AI 助手", en: "Agent Chat", descZh: "对话与执行", descEn: "Chat & run", icon: Bot },
+  { href: "/billing", zh: "订阅", en: "Billing", descZh: "计划与额度", descEn: "Plans", icon: CreditCard },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {

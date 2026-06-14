@@ -18,6 +18,11 @@ import { growthOpportunities, platformOps } from "@/lib/ops-data";
 import { useLocale } from "@/hooks/useLocale";
 
 const priorityPlatforms = platformOps.filter((platform) => ["xiaohongshu", "tiktok", "linkedin"].includes(platform.id));
+const personalPlatformActions: Record<string, { zh: string; en: string }> = {
+  xiaohongshu: { zh: "补齐小红书资产", en: "Fill Xiaohongshu assets" },
+  linkedin: { zh: "复用成创始人帖", en: "Turn into founder posts" },
+  tiktok: { zh: "优化短视频脚本", en: "Improve short video scripts" }
+};
 
 export function OperatingDashboard() {
   const locale = useLocale();
@@ -30,7 +35,7 @@ export function OperatingDashboard() {
     northStar: "Cross-platform reach",
     northStarDetail: "Owned channels this week",
     approved: "Ready assets",
-    approvedDetail: "Can be scheduled now",
+    approvedDetail: "Ready to reuse",
     gaps: "Priority gaps",
     gapsDetail: "Need new drafts",
     actionsTitle: "Next best actions",
@@ -45,7 +50,7 @@ export function OperatingDashboard() {
     northStar: "跨平台触达",
     northStarDetail: "本周自有渠道",
     approved: "可发布资产",
-    approvedDetail: "可直接排期",
+    approvedDetail: "可以直接使用",
     gaps: "优先缺口",
     gapsDetail: "需要补新内容",
     actionsTitle: "下一步动作",
@@ -144,7 +149,7 @@ export function OperatingDashboard() {
                 <div className="mt-4 grid gap-2 text-sm">
                   <InfoRow label={copy.channelLabels.reach} value={platform.sevenDayReach} />
                   <InfoRow label={copy.channelLabels.gap} value={locale === "en" ? platform.conversionSignalEn : platform.conversionSignal} />
-                  <InfoRow label={copy.channelLabels.action} value={locale === "en" ? platform.nextTaskEn : platform.nextTask} />
+                  <InfoRow label={copy.channelLabels.action} value={locale === "en" ? personalPlatformActions[platform.id].en : personalPlatformActions[platform.id].zh} />
                 </div>
               </Link>
             );
