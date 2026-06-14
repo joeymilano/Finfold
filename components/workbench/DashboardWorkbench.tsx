@@ -1,6 +1,5 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { UsageMeter } from "@/components/billing/UsageMeter";
@@ -296,10 +295,6 @@ export function DashboardWorkbench() {
             </h1>
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
-            <span className="inline-flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2 font-semibold text-fg-muted">
-              <ShieldCheck className="h-4 w-4 text-brand-strong dark:text-brand" />
-              {entitlement.authenticated ? entitlement.plan : "Showcase"}
-            </span>
             <Link href="/packages" className="focus-ring inline-flex items-center gap-2 rounded-md border border-hairline bg-surface px-3 py-2 font-semibold text-fg">
               {locale === "en" ? "View Kits" : "查看套件"}
             </Link>
