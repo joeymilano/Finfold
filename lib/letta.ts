@@ -12,10 +12,23 @@
  * Letta docs: https://docs.letta.com/api-reference
  */
 
-const LETTA_BASE_URL  = process.env.LETTA_API_URL  ?? "https://api.letta.com";
-const LETTA_API_KEY   = process.env.LETTA_API_KEY   ?? "";
-const LETTA_MODEL     = process.env.LETTA_MODEL     ?? "openai/gpt-4o-mini";
-const LETTA_EMBEDDING = process.env.LETTA_EMBEDDING  ?? "openai/text-embedding-3-small";
+// IMPORTANT: read env lazily, NOT at module scope.
+// In the Cloudflare Workers / edge runtime, secrets are bound per-request and
+// are NOT available when this module is first evaluated. Capturing them in
+// module-level consts yields empty strings (which made isLettaConfigured()
+// return false at runtime). Always read process.env inside functions.
+const lettaBaseUrl  = () => process.env.LETTA_API_URL   ?? "https://api.letta.com";
+const lettaApiKey   = () => process.env.LETTA_API_KEY   ?? "";
+const lettaModel    = () => process.env.LETTA_MODEL     ?? "openai/gpt-4o-mini";
+const lettaEmbedding = () => process.env.LETTA_EMBEDDING ?? "openai/text-embedding-3-small";
+
+/**
+ * Model used specifically for structured multi-platform generation, where
+ * stronger JSON adherence matters. Falls back to the agent's base model.
+ * Set LETTA_GENERATION_MODEL to a valid Letta handle (see GET /v1/models).
+ */
+export const lettaGenerationModel = () =>
+  process.env.LETTA_GENERATION_MODEL ?? lettaModel();
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -54,14 +67,14 @@ export interface LettaParsedResponse {
 // ─── Config check ────────────────────────────────────────────────────
 
 export function isLettaConfigured(): boolean {
-  return Boolean(LETTA_API_KEY);
+  return Boolean(lettaApiKey());
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function headers(): Record<string, string> {
   return {
-    Authorization: `Bearer ${LETTA_API_KEY}`,
+    Authorization: `Bearer ${lettaApiKey()}`,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
@@ -71,7 +84,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${LETTA_BASE_URL}${path}`;
+  const url = `${lettaBaseUrl()}${path}`;
   const res = await fetch(url, {
     ...options,
     headers: { ...headers(), ...(options.headers as Record<string, string>) },
@@ -143,8 +156,8 @@ export async function createLettaAgent(
   const body: Record<string, unknown> = {
     name: `finfold-user-${userId.substring(0, 8)}`,
     description: `Finfold AI agent for user ${userEmail}`,
-    model: LETTA_MODEL,
-    embedding: LETTA_EMBEDDING,
+    model: lettaModel(),
+    embedding: lettaEmbedding(),
     memory_blocks: memoryBlocks,
   };
 
@@ -161,22 +174,109 @@ export async function deleteLettaAgent(agentId: string): Promise<void> {
   await request<void>(`/v1/agents/${agentId}`, { method: "DELETE" });
 }
 
+// ─── Shared generator agent (trial + fallback) ───────────────────────
+
+/**
+ * A single shared agent used for generation when no per-user agent is
+ * available — e.g. anonymous trial users, or as a backstop when the
+ * per-user agent could not be resolved.
+ *
+ * Letta has NO agent-less chat-completions endpoint, so every generation
+ * MUST target a real agent. This guarantees one always exists.
+ */
+const SHARED_AGENT_NAME = "finfold-shared-generator";
+let sharedAgentIdCache: string | null = null;
+
+export async function getSharedLettaAgentId(): Promise<string | null> {
+  if (!isLettaConfigured()) {
+    return null;
+  }
+
+  if (sharedAgentIdCache) {
+    return sharedAgentIdCache;
+  }
+
+  try {
+    // Reuse an existing shared agent if one is already on the account.
+    const existing = await request<LettaAgent[]>(
+      `/v1/agents?name=${encodeURIComponent(SHARED_AGENT_NAME)}&limit=1`
+    ).catch(() => [] as LettaAgent[]);
+
+    const match = Array.isArray(existing)
+      ? existing.find((agent) => agent.name === SHARED_AGENT_NAME)
+      : undefined;
+
+    if (match) {
+      sharedAgentIdCache = match.id;
+      return match.id;
+    }
+
+    const created = await createSharedLettaAgent();
+    sharedAgentIdCache = created.id;
+    return created.id;
+  } catch {
+    return null;
+  }
+}
+
+async function createSharedLettaAgent(): Promise<LettaAgent> {
+  const memoryBlocks: LettaMemoryBlock[] = [
+    {
+      label: "persona",
+      value: [
+        "You are Finfold AI, a senior growth strategist and content creation assistant.",
+        "You deeply understand each social media platform's algorithm and culture.",
+        "Your job is NOT to write generic AI copy — it is to produce content that earns real attention, trust, and action on each specific platform.",
+        "When asked to generate structured content, you MUST return strict JSON matching the requested schema — no markdown fences, no commentary outside the JSON.",
+        "You always follow anti-AI-flavor rules: no generic phrases, no passive voice, no filler.",
+      ].join("\n"),
+    },
+    {
+      label: "human",
+      value: "This is a shared Finfold agent used for trial and fallback content generation.",
+    },
+  ];
+
+  const body: Record<string, unknown> = {
+    name: SHARED_AGENT_NAME,
+    description: "Finfold shared generator agent (trial + fallback).",
+    model: lettaModel(),
+    embedding: lettaEmbedding(),
+    memory_blocks: memoryBlocks,
+  };
+
+  return request<LettaAgent>("/v1/agents", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 // ─── Messaging ───────────────────────────────────────────────────────
 
 /**
  * Send a user message to a Letta agent and return the parsed response.
+ *
+ * `overrideModel` pins a specific model handle for this single request
+ * (without recreating the agent) — useful for structured generation where
+ * a stronger model returns more reliable JSON.
  */
 export async function sendLettaMessage(
   agentId: string,
-  userMessage: string
+  userMessage: string,
+  overrideModel?: string
 ): Promise<LettaParsedResponse> {
+  const payload: Record<string, unknown> = {
+    messages: [{ role: "user", content: userMessage }],
+  };
+  if (overrideModel) {
+    payload.override_model = overrideModel;
+  }
+
   const data = await request<unknown>(
     `/v1/agents/${agentId}/messages`,
     {
       method: "POST",
-      body: JSON.stringify({
-        messages: [{ role: "user", content: userMessage }],
-      }),
+      body: JSON.stringify(payload),
     }
   );
 
@@ -238,9 +338,10 @@ export async function sendLettaMessage(
  */
 export async function sendLettaStructuredRequest(
   agentId: string,
-  prompt: string
+  prompt: string,
+  overrideModel?: string
 ): Promise<string> {
-  const result = await sendLettaMessage(agentId, prompt);
+  const result = await sendLettaMessage(agentId, prompt, overrideModel);
 
   // The agent should return JSON in its response
   let content = result.assistantMessage;
@@ -264,7 +365,7 @@ export async function streamLettaMessage(
   agentId: string,
   userMessage: string
 ): Promise<ReadableStream<Uint8Array>> {
-  const url = `${LETTA_BASE_URL}/v1/agents/${agentId}/messages`;
+  const url = `${lettaBaseUrl()}/v1/agents/${agentId}/messages`;
 
   const res = await fetch(url, {
     method: "POST",

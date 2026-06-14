@@ -7,8 +7,18 @@ pages_build_output_dir = ".vercel/output/static"
 NEXT_PUBLIC_SUPABASE_URL = "https://mjkaqlzryhxcubipftcf.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_YF-GMCp0x7XZjYWwcq3ykQ_RcU_nOyH"
 NEXT_PUBLIC_APP_URL = "https://finfold.pages.dev"
-LLM_API_BASE = "https://api.letta.com/v1"
-LLM_MODEL = "openai-proxy/gpt-4.1-mini"
+# AI generation routes through Letta agents (per-user + a shared trial/fallback
+# agent). Letta has NO agent-less /chat/completions endpoint, so we do NOT point
+# LLM_API_BASE at api.letta.com — that produced the
+# `429 {"reasons":["agent-not-found"]}` failures. To use a direct
+# OpenAI-compatible model instead, set LLM_API_KEY + a non-Letta LLM_API_BASE.
 LETTA_API_URL = "https://api.letta.com"
-LETTA_MODEL = "openai-proxy/gpt-4.1-mini"
+# Must be a valid Letta model handle (GET /v1/models). The old
+# "openai-proxy/gpt-4.1-mini" was NOT a real handle and made agent
+# creation fail with `NOT_FOUND: Handle ... not found`.
+LETTA_MODEL = "openai/gpt-4o-mini"
+LETTA_EMBEDDING = "openai/text-embedding-3-small"
+# Stronger model for multi-platform structured generation (better JSON
+# adherence across all requested platforms). Must be a valid Letta handle.
+LETTA_GENERATION_MODEL = "anthropic/claude-haiku-4-5"
 NEXT_PUBLIC_ALLOW_MOCK = "false"
