@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award, ImageIcon } from "lucide-react";
+import { Check, Copy, Download, FileText, Loader2, Heart, MessageCircle, Star, Share2, MoreHorizontal, MessageSquare, ThumbsUp, Send, Globe, Sparkles, Eye, Code, Repeat2, ArrowBigUp, ArrowBigDown, ChevronUp, Bookmark, Award } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { KitOutput } from "@/lib/content-schema";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
@@ -344,12 +344,12 @@ function SocialMockup({
     case "product-hunt":
       return <ProductHuntMockup title={title} body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
     case "medium-substack":
-      return <NewsletterMockup title={title} body={body} cta={cta} />;
+      return <NewsletterMockup title={title} body={body} cta={cta} imageUrl={imageUrl} />;
     case "threads":
-      return <ThreadsMockup body={body} cta={cta} />;
+      return <ThreadsMockup body={body} cta={cta} imageUrl={imageUrl} />;
     case "x":
     default:
-      return <XMockup body={body} cta={cta} notes={notes} />;
+      return <XMockup body={body} cta={cta} notes={notes} imageUrl={imageUrl} />;
   }
 }
 
@@ -711,7 +711,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
         <MoreHorizontal className="h-4 w-4 text-slate-500" />
       </div>
 
-      <div className="flex gap-2.5 px-3 py-3.5">
+      <div className="flex min-w-0 gap-2.5 px-3 py-3.5">
         {/* Vote rail */}
         <div className="flex flex-col items-center gap-0.5 pt-0.5 text-slate-400">
           <ArrowBigUp className="h-5 w-5" style={{ color: meta.accent }} />
@@ -721,7 +721,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 
         {/* Body column */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
             <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ backgroundColor: meta.accent }}>{meta.tag}</span>
             <span>Posted by u/finfold_dev · 1h</span>
           </div>
@@ -730,6 +730,12 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
 
           <div className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-[13px] leading-relaxed text-slate-700">{body}</div>
 
+          {imageUrl && (
+            <div className="mt-2.5 overflow-hidden rounded-lg border border-slate-100">
+              <img src={imageUrl} alt={title} className="w-full object-cover" loading="lazy" />
+            </div>
+          )}
+
           {cta && <p className="mt-2.5 text-[13px] font-semibold text-slate-600 italic">{cta}</p>}
 
           {notes && (
@@ -737,7 +743,7 @@ function RedditMockup({ platform, title, body, cta, notes, imageUrl }: { platfor
           )}
 
           {/* Action row */}
-          <div className="mt-3 flex items-center gap-4 text-[11px] font-semibold text-slate-500">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-slate-500">
             <span className="flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> 184 Comments</span>
             <span className="flex items-center gap-1"><Share2 className="h-3.5 w-3.5" /> Share</span>
             <span className="flex items-center gap-1"><Bookmark className="h-3.5 w-3.5" /> Save</span>
