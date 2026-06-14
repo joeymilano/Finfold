@@ -63,17 +63,17 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar — desktop only */}
         <aside className="hidden flex-col border-r border-hairline bg-surface/88 backdrop-blur-xl lg:flex lg:min-h-screen">
           {/* Logo + toggles */}
-          <div className="flex items-center justify-between gap-2 px-4 py-4">
-            <Link href="/workbench" className="group flex items-center gap-3 rounded-lg px-2 py-2">
-              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-md bg-brand shadow-glow-brand">
-                <FishLogo variant="app-icon" className="h-11 w-11 object-cover" />
+          <div className="flex items-center justify-between gap-2 px-4 py-3.5">
+            <Link href="/workbench" className="group flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-2">
+              <span className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-brand shadow-glow-brand">
+                <FishLogo variant="app-icon" className="h-10 w-10 object-cover" />
               </span>
               <span className="leading-none">
-                <span className="block text-base font-semibold tracking-normal text-fg">{brand.name}</span>
-                <span className="brand-cn mt-1 block text-[12px] text-fg-muted">{brand.chineseName}</span>
+                <span className="block text-sm font-bold tracking-tight text-fg">{brand.name}</span>
+                <span className="brand-cn mt-1 block text-[11px] text-fg-muted">{brand.chineseName}</span>
               </span>
             </Link>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               <LocaleToggle />
               <ThemeToggle />
             </div>

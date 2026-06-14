@@ -43,7 +43,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }, [isLoading]);
 
   async function copyOutput(output: KitOutput) {
-    if (!canUseOutputs) {
+    if (output.locked || !canUseOutputs) {
       onLockedAction?.("copy");
       return;
     }
@@ -56,7 +56,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   async function copyAll() {
-    if (!canUseOutputs) {
+    if (!canUseOutputs || outputs.some((output) => output.locked)) {
       onLockedAction?.("copy");
       return;
     }
@@ -67,7 +67,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
   }
 
   function downloadMarkdown() {
-    if (!canUseOutputs) {
+    if (!canUseOutputs || outputs.some((output) => output.locked)) {
       onLockedAction?.("export");
       return;
     }
@@ -76,16 +76,13 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `finfold-content-kit-${new Date().toISOString().slice(0, 10)}.md`;
+    link.download = `repurpose-content-kit-${new Date().toISOString().slice(0, 10)}.md`;
     link.click();
     URL.revokeObjectURL(url);
   }
 
-  const toggleViewMode = (platformId: string) => {
-    setViewModes((prev) => ({
-      ...prev,
-      [platformId]: prev[platformId] === "raw" ? "preview" : "raw",
-    }));
+  const setViewMode = (platformId: string, mode: "preview" | "raw") => {
+    setViewModes((prev) => ({ ...prev, [platformId]: mode }));
   };
 
   return (
@@ -102,18 +99,18 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
               <button
                 type="button"
                 onClick={() => void copyAll()}
-                className="btn-ghost focus-ring px-3 py-1.5 text-xs"
+                className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
               >
                 {copiedAll ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5 text-fg-muted" />}
-                {!canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
+                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToCopy : copiedAll ? copy.copiedKit : copy.copyAll}
               </button>
               <button
                 type="button"
                 onClick={downloadMarkdown}
-                className="btn-primary focus-ring px-3 py-1.5 text-xs"
+                className="btn-primary focus-ring cursor-pointer px-3 py-1.5 text-xs"
               >
                 <Download className="h-3.5 w-3.5" />
-                {!canUseOutputs ? copy.unlockToExport : copy.markdown}
+                {outputs.some((output) => output.locked) || !canUseOutputs ? copy.unlockToExport : copy.markdown}
               </button>
             </>
           ) : null}
@@ -150,18 +147,31 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
             <LoadingStep index={2} currentIndex={loadingStepIndex} label={locale === "en" ? "Reviewing brand compliance rules and prohibited expressions..." : "审查品牌合规规则与禁用表达词..."} />
             <LoadingStep index={3} currentIndex={loadingStepIndex} label={locale === "en" ? "Reconstructing multi-platform content and CTA conversion points..." : "重构多平台内容与 CTA 转化点..."} />
           </div>
+
+          {/* Skeleton preview rows */}
+          <div className="mt-5 w-full max-w-xs space-y-2 opacity-60">
+            <div className="rk-shimmer h-3 w-full rounded-md" />
+            <div className="rk-shimmer h-3 w-4/5 rounded-md" />
+            <div className="rk-shimmer h-3 w-3/5 rounded-md" />
+          </div>
         </div>
       ) : null}
 
       {outputs.length === 0 && !isLoading ? (
         <div className="flex min-h-[620px] flex-col items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-2 p-8 text-center">
-          <div className="relative mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-surface text-brand">
+          <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-surface shadow-panel text-brand">
             <Sparkles className="h-6 w-6" />
+            <span className="absolute -inset-px rounded-2xl ring-1 ring-brand/20" />
           </div>
           <p className="text-sm font-semibold text-fg">{copy.emptyTitle}</p>
-          <p className="mt-1.5 max-w-sm text-xs leading-5 text-fg-muted">
+          <p className="mt-2 max-w-[280px] text-xs leading-relaxed text-fg-muted">
             {copy.emptyBody}
           </p>
+          <div className="mt-6 flex items-center gap-2">
+            <span className="h-1 w-1 rounded-full bg-brand/40" />
+            <span className="h-1 w-6 rounded-full bg-brand/60" />
+            <span className="h-1 w-1 rounded-full bg-brand/40" />
+          </div>
         </div>
       ) : null}
 
@@ -169,12 +179,12 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
         {outputs.map((output) => {
           const platform = getPlatform(output.platform);
           const copied = copiedPlatform === output.platform;
-          const locked = !canUseOutputs;
+          const locked = output.locked || !canUseOutputs;
           const previewBody = locked ? createPreview(output.body) : output.body;
           const mode = viewModes[output.platform] ?? "preview"; // Default to premium simulated preview
 
           return (
-            <article key={output.platform} className="panel panel-hover min-w-0 p-4">
+            <article key={output.platform} className="panel panel-hover min-w-0 p-4 transition-all duration-200">
               <div className="mb-4 flex flex-col gap-3 border-b border-hairline pb-3.5 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-xs font-semibold text-fg-muted">
@@ -185,7 +195,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-semibold leading-tight text-fg">{output.title}</h3>
-                    <span className="tag tag-success">{locale === "en" ? "Open" : "开放预览"}</span>
+                    {locked ? <span className="tag tag-warn">Preview</span> : null}
                     <span className="tag tag-neutral">{output.publishStatus ?? "draft"}</span>
                   </div>
                 </div>
@@ -195,8 +205,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   <div className="inline-flex rounded-lg bg-surface-2 p-0.5">
                     <button
                       type="button"
-                      onClick={() => toggleViewMode(output.platform)}
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      onClick={() => setViewMode(output.platform, "preview")}
+                      className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
                         mode === "preview" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
@@ -205,8 +215,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                     </button>
                     <button
                       type="button"
-                      onClick={() => toggleViewMode(output.platform)}
-                      className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all ${
+                      onClick={() => setViewMode(output.platform, "raw")}
+                      className={`inline-flex cursor-pointer items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-all duration-150 ${
                         mode === "raw" ? "bg-surface text-fg shadow-panel" : "text-fg-muted hover:text-fg"
                       }`}
                     >
@@ -218,7 +228,7 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
                   <button
                     type="button"
                     onClick={() => void copyOutput(output)}
-                    className="btn-ghost focus-ring px-3 py-1.5 text-xs"
+                    className="btn-ghost focus-ring cursor-pointer px-3 py-1.5 text-xs"
                   >
                     {copied ? <Check className="h-3.5 w-3.5 text-brand" /> : <Copy className="h-3.5 w-3.5" />}
                     {locked ? copy.unlockCopy : copied ? copy.copied : copy.copy}
@@ -228,8 +238,8 @@ export function OutputBoard({ outputs, isLoading, error, locale, canUseOutputs =
 
               {/* View Rendering */}
               {mode === "preview" ? (
-                <div className="min-w-0 overflow-hidden rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
-                  <div className="relative mx-auto w-full max-w-[420px] overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
+                <div className="flex min-w-0 justify-center rounded-xl border border-hairline bg-surface-2 p-3 sm:p-4">
+                  <div className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-hairline bg-white font-sans shadow-raised">
                     {/* High Fidelity Simulated Preview */}
                     <SocialMockup
                       platform={output.platform}
@@ -287,7 +297,7 @@ function ContentBlock({ label, value, locked = false }: { label: string; value: 
       <p className="mt-1.5 whitespace-pre-line text-sm leading-6 text-fg">{value}</p>
       {locked ? (
         <p className="mt-3 rounded-lg border border-warn/30 bg-warn/10 p-2.5 text-xs font-medium text-warn">
-          Showcase mode is open: full copy, CTA, notes, export, and analysis are available for review.
+          Full body, CTA, notes, copy, export, and history will unlock after logging in and upgrading.
         </p>
       ) : null}
     </div>
@@ -330,7 +340,7 @@ function SocialMockup({
               Xiaohongshu Template
             </span>
             <h4 className="text-lg font-bold leading-snug px-3 line-clamp-3">{title}</h4>
-            <p className="mt-2 text-[10px] text-white/80 font-medium">Finfold OS NATIVE PREVIEW</p>
+            <p className="mt-2 text-[10px] text-white/80 font-medium">Repurpose OS NATIVE PREVIEW</p>
           </div>
         </div>
 
@@ -357,7 +367,7 @@ function SocialMockup({
           {cta && <p className="mt-3 text-xs font-semibold text-rose-600">{cta}</p>}
           {notes && <p className="mt-3 text-[11px] text-slate-400 bg-slate-50 rounded p-2 border border-slate-100">{notes}</p>}
           <div className="mt-3.5 flex flex-wrap gap-1.5">
-            <span className="text-xs font-medium text-blue-500 hover:underline">#FinfoldOS</span>
+            <span className="text-xs font-medium text-blue-500 hover:underline">#RepurposeOS</span>
             <span className="text-xs font-medium text-blue-500 hover:underline">#IndieHacker</span>
             <span className="text-xs font-medium text-blue-500 hover:underline">#SaasGrowth</span>
           </div>
@@ -414,7 +424,7 @@ function SocialMockup({
             {/* Mocked Grid Image placeholder */}
             <div className="mt-3 grid grid-cols-3 gap-1.5 w-56">
               <div className="aspect-square rounded-sm bg-gradient-to-br from-indigo-500 to-cyan-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Image</div>
-              <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Finfold</div>
+              <div className="aspect-square rounded-sm bg-gradient-to-br from-purple-500 to-pink-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Repurpose</div>
               <div className="aspect-square rounded-sm bg-gradient-to-br from-emerald-500 to-lime-400 border border-slate-100 flex items-center justify-center text-[10px] text-white font-bold">Growth</div>
             </div>
 
@@ -464,7 +474,7 @@ function SocialMockup({
                 <span className="text-sm font-bold text-slate-950 leading-none">Founder OS</span>
                 <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] text-white">✓</span>
               </div>
-              <p className="text-xs text-slate-500">@finfold_os · Just now</p>
+              <p className="text-xs text-slate-500">@repurpose_os · Just now</p>
             </div>
           </div>
           <MoreHorizontal className="h-4 w-4 text-slate-400" />
@@ -511,7 +521,7 @@ function formatOutput(output: KitOutput, platformLabel: string): string {
 }
 
 function formatAllOutputs(outputs: KitOutput[]): string {
-  const header = `# Finfold Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
+  const header = `# Repurpose / 一鱼多吃 Content Kit\n\nGenerated: ${new Date().toLocaleString()}`;
   const body = outputs
     .map((output) => {
       const platform = getPlatform(output.platform);

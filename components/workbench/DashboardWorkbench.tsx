@@ -356,9 +356,9 @@ export function DashboardWorkbench() {
               onClick={() => void generateKit()}
               disabled={!canGenerate}
               title={!canGenerate && generateDisabledReason ? generateDisabledReason : undefined}
-              className="focus-ring btn-primary inline-flex shrink-0 items-center justify-center gap-2 text-sm disabled:opacity-50"
+              className="focus-ring btn-primary cursor-pointer inline-flex shrink-0 items-center justify-center gap-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4 text-accent" />}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <WandSparkles className="h-4 w-4" />}
               {copy.generate} <ArrowRight className="h-4 w-4" />
             </button>
           </div>

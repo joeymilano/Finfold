@@ -70,10 +70,13 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
     const modelName = process.env.LLM_MODEL ?? "gpt-4o-mini";
     const isGlm5 = modelName.startsWith("glm-5");
 
+    const apiBase = process.env.LLM_API_BASE ?? "https://api.openai.com/v1";
+    const supportsJsonMode = apiBase.includes("openai.com") || apiBase.includes("bigmodel.cn");
+
     const requestBody: Record<string, unknown> = {
       model: modelName,
       temperature: isGlm5 ? 1.0 : 0.7,
-      response_format: { type: "json_object" },
+      ...(supportsJsonMode ? { response_format: { type: "json_object" } } : {}),
       messages: [
         {
           role: "system",
@@ -92,7 +95,7 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
       requestBody.thinking = { type: "enabled" };
     }
 
-    const response = await fetch(`${process.env.LLM_API_BASE ?? "https://api.openai.com/v1"}/chat/completions`, {
+    const response = await fetch(`${apiBase}/chat/completions`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -126,8 +129,9 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
 
     return outputs;
   } catch (error) {
-    console.error("LLM generation failed:", error);
-    throw new Error("AI generation is temporarily unavailable. Please try again.");
+    const detail = error instanceof Error ? error.message : String(error);
+    console.error("LLM generation failed:", detail);
+    throw new Error(`AI generation failed: ${detail}`);
   }
 }
 
