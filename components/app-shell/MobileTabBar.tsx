@@ -3,19 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CreditCard,
+  Bot,
   FileStack,
-  Settings,
+  Gauge,
+  MessageSquare,
+  ShieldCheck,
   WandSparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/hooks/useLocale";
 
 const primaryTabs = [
-  { href: "/workbench", zh: "生产", en: "Build", icon: WandSparkles },
-  { href: "/packages", zh: "套件", en: "Kits", icon: FileStack },
-  { href: "/billing", zh: "订阅", en: "Plans", icon: CreditCard },
-  { href: "/settings", zh: "设置", en: "Prefs", icon: Settings },
+  { href: "/dashboard", zh: "仪表", en: "Home", icon: Gauge },
+  { href: "/workbench", zh: "创作", en: "Create", icon: WandSparkles },
+  { href: "/packages", zh: "内容", en: "Saved", icon: FileStack },
+  { href: "/brand-memory", zh: "记忆", en: "Memory", icon: MessageSquare },
+  { href: "/guardrails", zh: "规则", en: "Rules", icon: ShieldCheck },
+  { href: "/agents", zh: "助手", en: "Agent", icon: Bot },
 ];
 
 export function MobileTabBar() {

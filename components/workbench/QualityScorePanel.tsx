@@ -149,13 +149,13 @@ export function QualityScorePanel({ outputs, brain, locale }: Props) {
         })}
       </div>
 
-      {/* Footer hint if Brand Brain not configured */}
+      {/* Footer hint if brand memory is not configured */}
       {!brain.brandName && (
         <div className="border-t border-hairline px-5 py-3">
           <p className="text-xs text-fg-muted">
             {en
-              ? "💡 Configure Brand Brain in Guardrails to unlock brand consistency scoring."
-              : "💡 在「品牌规则」配置 Brand Brain，可解锁品牌一致性精准评分。"}
+              ? "Configure Brand Memory to unlock brand consistency scoring."
+              : "配置「品牌记忆」后，可以获得更准确的品牌一致性评分。"}
           </p>
         </div>
       )}

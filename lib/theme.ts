@@ -14,6 +14,14 @@ export function getStoredLocale(): Locale {
     const v = localStorage.getItem(LOCALE_STORAGE_KEY);
     if (v === "zh" || v === "en") return v;
   } catch { /* storage unavailable */ }
+  const cookieLocale = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith(`${LOCALE_STORAGE_KEY}=`))
+    ?.split("=")[1];
+  if (cookieLocale === "zh" || cookieLocale === "en") return cookieLocale;
+  const lang = document.documentElement.lang;
+  if (lang === "zh" || lang === "zh-CN") return "zh";
+  if (lang === "en") return "en";
   return DEFAULT_LOCALE;
 }
 
@@ -21,9 +29,10 @@ export function applyLocale(locale: Locale): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-    document.documentElement.lang = locale === "en" ? "en" : "zh-CN";
-    window.dispatchEvent(new CustomEvent("finfold-locale-change", { detail: locale }));
   } catch { /* storage unavailable */ }
+  document.cookie = `${LOCALE_STORAGE_KEY}=${locale}; path=/; max-age=31536000; SameSite=Lax`;
+  document.documentElement.lang = locale === "en" ? "en" : "zh-CN";
+  window.dispatchEvent(new CustomEvent("finfold-locale-change", { detail: locale }));
 }
 
 /**

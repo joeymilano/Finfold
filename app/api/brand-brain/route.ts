@@ -23,11 +23,11 @@ export async function GET() {
     return NextResponse.json({ brain: mapBrandBrainFromRow(data), persisted: Boolean(data) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Please log in to load Brand Brain." }, { status: 401 });
+      return NextResponse.json({ error: "Please log in to load Brand Memory." }, { status: 401 });
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to load Brand Brain." },
+      { error: error instanceof Error ? error.message : "Failed to load Brand Memory." },
       { status: 400 }
     );
   }
@@ -59,11 +59,11 @@ export async function PUT(request: Request) {
     return NextResponse.json({ brain: mapBrandBrainFromRow(data), persisted: true });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Please log in to save Brand Brain." }, { status: 401 });
+      return NextResponse.json({ error: "Please log in to save Brand Memory." }, { status: 401 });
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save Brand Brain." },
+      { error: error instanceof Error ? error.message : "Failed to save Brand Memory." },
       { status: 400 }
     );
   }

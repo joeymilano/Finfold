@@ -345,6 +345,29 @@ button:disabled {
 .rk-delay-3 { animation-delay: 240ms; }
 .rk-delay-4 { animation-delay: 320ms; }
 
+.field-input {
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(var(--hairline));
+  background: rgb(var(--surface-2));
+  padding: 0.625rem 0.75rem;
+  color: rgb(var(--fg));
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  transition: border-color 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.field-input::placeholder {
+  color: rgb(var(--fg-muted));
+}
+
+.field-input:focus {
+  outline: none;
+  border-color: rgb(var(--brand));
+  background: rgb(var(--surface));
+  box-shadow: 0 0 0 3px rgb(var(--brand) / 0.14);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.001ms !important;

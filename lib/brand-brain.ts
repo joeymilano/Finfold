@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /* ------------------------------------------------------------------ */
-/*  Brand Brain schema                                                */
+/*  Brand Memory schema                                               */
 /* ------------------------------------------------------------------ */
 
 export const brandBrainSchema = z.object({
@@ -41,7 +41,7 @@ export function saveBrandBrain(brain: BrandBrain): void {
 export async function loadPersistedBrandBrain(): Promise<{ brain: BrandBrain; persisted: boolean }> {
   const response = await fetch("/api/brand-brain", { cache: "no-store" });
   if (!response.ok) {
-    throw new Error("Brand Brain is not available.");
+    throw new Error("Brand Memory is not available.");
   }
   const data = (await response.json()) as { brain?: BrandBrain; persisted?: boolean };
   const brain = brandBrainSchema.parse(data.brain ?? {});
@@ -59,7 +59,7 @@ export async function savePersistedBrandBrain(brain: BrandBrain): Promise<{ brai
     body: JSON.stringify(parsed)
   });
   if (!response.ok) {
-    throw new Error("Brand Brain could not be saved to your account.");
+    throw new Error("Brand Memory could not be saved to your account.");
   }
 
   const data = (await response.json()) as { brain?: BrandBrain; persisted?: boolean };

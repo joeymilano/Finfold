@@ -1,6 +1,7 @@
 "use client";
 
 import { Languages } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { applyLocale, getStoredLocale, type Locale } from "@/lib/theme";
 
@@ -17,6 +18,7 @@ async function persistLocaleToProfile(locale: Locale) {
 }
 
 export function LocaleToggle() {
+  const pathname = usePathname();
   const [locale, setLocale] = useState<Locale>("en");
   const [mounted, setMounted] = useState(false);
 
@@ -31,8 +33,15 @@ export function LocaleToggle() {
     return () => window.removeEventListener("finfold-locale-change", onLocaleChange);
   }, []);
 
+  useEffect(() => {
+    if (mounted) {
+      setLocale(getStoredLocale());
+    }
+  }, [mounted, pathname]);
+
   function toggle() {
-    const next: Locale = locale === "zh" ? "en" : "zh";
+    const current = getStoredLocale();
+    const next: Locale = current === "zh" ? "en" : "zh";
     setLocale(next);
     applyLocale(next);
     document.documentElement.lang = next === "en" ? "en" : "zh-CN";

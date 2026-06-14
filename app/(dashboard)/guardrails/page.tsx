@@ -1,10 +1,11 @@
 "use client";
 
-import { ShieldCheck, Plus, Trash2, X, Sparkles, CheckCircle2, Ban, Brain, Save, Target, MessageSquareWarning, Users } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import { ShieldCheck, Plus, Trash2, X, Sparkles, CheckCircle2, Ban, Brain, ArrowRight } from "lucide-react";
+import { useState, useEffect } from "react";
 import { assetSourceNotes } from "@/lib/ops-data";
 import { useLocale } from "@/hooks/useLocale";
-import { getBrandBrain, saveBrandBrain, loadPersistedBrandBrain, savePersistedBrandBrain, getBrainCompleteness, type BrandBrain } from "@/lib/brand-brain";
+import { getBrandBrain, loadPersistedBrandBrain, getBrainCompleteness, type BrandBrain } from "@/lib/brand-brain";
 import { addToast } from "@/components/ui/Toast";
 
 type GuardrailRule = {
@@ -54,11 +55,6 @@ export default function GuardrailsPage() {
 
   const [brain, setBrain] = useState<BrandBrain>({ brandName: "", productDescription: "", targetAudience: "", toneKeywords: [], bannedPhrases: [], approvedExamples: [], competitors: [], positioningStatement: "" });
   const [brainLoaded, setBrainLoaded] = useState(false);
-  const [brainSaving, setBrainSaving] = useState(false);
-  const [brainExpanded, setBrainExpanded] = useState(false);
-  const [keywordInput, setKeywordInput] = useState("");
-  const [bannedInput, setBannedInput] = useState("");
-  const [competitorInput, setCompetitorInput] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -82,25 +78,6 @@ export default function GuardrailsPage() {
     };
   }, []);
 
-  const handleBrainSave = useCallback(async () => {
-    setBrainSaving(true);
-    saveBrandBrain(brain);
-    try {
-      const { brain: savedBrain, persisted } = await savePersistedBrandBrain(brain);
-      setBrain(savedBrain);
-      addToast(
-        "success",
-        persisted
-          ? (locale === "en" ? "Brand Brain saved to your account!" : "品牌大脑已保存到账号！")
-          : (locale === "en" ? "Brand Brain saved locally." : "品牌大脑已保存到本地。")
-      );
-    } catch {
-      addToast("warning", locale === "en" ? "Saved locally. Log in to sync across devices." : "已保存到本地。登录后可跨设备同步。");
-    } finally {
-      setBrainSaving(false);
-    }
-  }, [brain, locale]);
-
   const t = locale === "en" ? {
     pageTitle: "Brand Guardrails",
     pageDesc: "Define your brand voice, prohibited terms, and CTA rules across channels. Rules configured here are injected directly into the AI Workbench engine and enforced on every generation.",
@@ -119,26 +96,10 @@ export default function GuardrailsPage() {
     ],
     cancel: "Cancel",
     save: "Save",
-    brainTitle: "Brand Brain",
-    brainDesc: "Tell Finfold about your product, audience, and tone. Every generation uses this context to produce on-brand, platform-native content.",
-    brainExpand: "Configure Brand Brain",
-    brainCollapse: "Hide",
-    brainSave: "Save Brain",
+    brainTitle: "Brand Memory",
+    brainDesc: "Your product, audience, tone, examples, and avoided words now live in one place. Use the dedicated memory page to update it.",
+    brainOpen: "Open Brand Memory",
     brainCompleteness: "Completeness",
-    brainBrandName: "Brand / Product Name",
-    brainBrandNamePh: "e.g. Finfold",
-    brainProductDesc: "Product Description",
-    brainProductDescPh: "What does your product do? Who is it for? What makes it different?",
-    brainTargetAudience: "Target Audience",
-    brainTargetAudiencePh: "e.g. global solo founders and small teams going global",
-    brainPositioning: "Positioning Statement",
-    brainPositioningPh: "e.g. The AI content growth OS for global founders going global",
-    brainToneKeywords: "Tone Keywords",
-    brainToneKeywordsPh: "Add keyword and press Enter",
-    brainBannedPhrases: "Banned Phrases",
-    brainBannedPhrasesPh: "Add phrase and press Enter",
-    brainCompetitors: "Competitors",
-    brainCompetitorsPh: "Add competitor and press Enter",
     brainBoundToWorkbench: "Bound to Workbench",
     deleteAlert: "Default system rules are brand guardrails and cannot be deleted. Only custom rules can be removed.",
     statusLabel: "Rule status",
@@ -147,47 +108,31 @@ export default function GuardrailsPage() {
     licenseViewSrc: "View source ↗",
     licenseCopyright: "License",
   } : {
-    pageTitle: "品牌与合规规则",
-    pageDesc: "在此设定您的多渠道品牌人设调性、禁用词红线与引流 CTA 规范。这里配置的规则将直接注入 AI 工作台编译引擎，在每一次生成中对内容进行真生效的审查。",
-    addRule: "新增追加规则",
-    addRuleModal: "新增自定义追加规则",
+    pageTitle: "品牌规则",
+    pageDesc: "设置哪些话不能说、哪些信息必须带上、不同平台要注意什么。创作台生成内容时会参考这些规则。",
+    addRule: "新增规则",
+    addRuleModal: "新增品牌规则",
     ruleTitle: "规则标题",
     ruleType: "规则类型",
-    ruleDetail: "规则详细描述（注入 AI 编译）",
+    ruleDetail: "规则说明",
     placeholder: `如：严禁推广词"免费领"`,
     detailPlaceholder: `详细描述此规则，比如：不要使用"第一"、"巅峰"等绝对词，微信公众号标题里必须包含"Finfold"`,
     typeOptions: [
-      { value: "avoid", label: "避开禁用词（Avoid）" },
-      { value: "required", label: "必带要素 / CTA（Required）" },
-      { value: "tone", label: "风格与人设（Tone）" },
-      { value: "legal", label: "合规与风控（Legal）" },
+      { value: "avoid", label: "不要出现" },
+      { value: "required", label: "必须包含" },
+      { value: "tone", label: "表达风格" },
+      { value: "legal", label: "风险提醒" },
     ],
     cancel: "取消",
     save: "确认保存",
-    deleteAlert: "基础系统规则为品牌出厂红线，不可删除。仅支持删除您自定义的追加规则。",
-    statusLabel: "策略状态",
-    brainTitle: "品牌大脑",
-    brainDesc: "告诉 Finfold 你的产品、受众和语气。每次生成内容时，系统会基于这些上下文自动对齐品牌调性。",
-    brainExpand: "配置品牌大脑",
-    brainCollapse: "收起",
-    brainSave: "保存大脑",
+    deleteAlert: "默认规则不能删除。你可以删除自己新增的规则。",
+    statusLabel: "状态",
+    brainTitle: "品牌记忆",
+    brainDesc: "产品说明、目标用户、语气、示例文案和禁用表达统一放在「品牌记忆」里维护。这里专注管理规则。",
+    brainOpen: "打开品牌记忆",
     brainCompleteness: "完整度",
-    brainBrandName: "品牌 / 产品名称",
-    brainBrandNamePh: "如：Finfold",
-    brainProductDesc: "产品描述",
-    brainProductDescPh: "你的产品做什么？面向谁？核心差异化是什么？",
-    brainTargetAudience: "目标受众",
-    brainTargetAudiencePh: "如：中国独立开发者和出海小团队",
-    brainPositioning: "定位声明",
-    brainPositioningPh: "如：给中国 OPC / AI 创业者 / 出海小团队用的跨平台内容增长操作系统",
-    brainToneKeywords: "语气关键词",
-    brainToneKeywordsPh: "输入关键词后按回车添加",
-    brainBannedPhrases: "禁用表达",
-    brainBannedPhrasesPh: "输入禁用词后按回车添加",
-    brainCompetitors: "竞品",
-    brainCompetitorsPh: "输入竞品名称后按回车添加",
-    brainBoundToWorkbench: "已绑定 Workbench",
-    boundLabel: "已绑定 Workbench",
+    brainBoundToWorkbench: "已连接创作台",
+    boundLabel: "已连接创作台",
     licenseTitle: "可商用视觉资源许可记录",
     licenseViewSrc: "查看源 ↗",
     licenseCopyright: "版权协议",
@@ -252,7 +197,7 @@ export default function GuardrailsPage() {
         </div>
       </section>
 
-      {/* ── Brand Brain ── */}
+      {/* Brand memory summary */}
       {brainLoaded && (
         <section className="panel p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -270,84 +215,11 @@ export default function GuardrailsPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="tag tag-brand text-[10px]">{t.brainBoundToWorkbench}</span>
-              <button type="button" onClick={() => setBrainExpanded(!brainExpanded)} className="btn-ghost text-xs">
-                {brainExpanded ? t.brainCollapse : t.brainExpand}
-              </button>
+              <Link href="/brand-memory" className="btn-ghost text-xs">
+                {t.brainOpen} <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
             </div>
           </div>
-
-          {brainExpanded && (
-            <div className="mt-5 pt-5 border-t border-hairline grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-xs font-bold text-fg uppercase tracking-wide">{t.brainBrandName}</label>
-                  <input
-                    type="text"
-                    placeholder={t.brainBrandNamePh}
-                    value={brain.brandName}
-                    onChange={(e) => setBrain((b) => ({ ...b, brandName: e.target.value }))}
-                    className="mt-1.5 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-fg focus:border-brand focus:bg-surface focus:outline-none transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-fg uppercase tracking-wide">{t.brainPositioning}</label>
-                  <input
-                    type="text"
-                    placeholder={t.brainPositioningPh}
-                    value={brain.positioningStatement}
-                    onChange={(e) => setBrain((b) => ({ ...b, positioningStatement: e.target.value }))}
-                    className="mt-1.5 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-fg focus:border-brand focus:bg-surface focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-fg uppercase tracking-wide">{t.brainProductDesc}</label>
-                <textarea
-                  rows={3}
-                  placeholder={t.brainProductDescPh}
-                  value={brain.productDescription}
-                  onChange={(e) => setBrain((b) => ({ ...b, productDescription: e.target.value }))}
-                  className="mt-1.5 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-fg placeholder-fg-muted focus:border-brand focus:bg-surface focus:outline-none transition-all resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="flex items-center gap-1.5 text-xs font-bold text-fg uppercase tracking-wide">
-                  <Target className="h-3.5 w-3.5 text-accent" /> {t.brainTargetAudience}
-                </label>
-                <textarea
-                  rows={2}
-                  placeholder={t.brainTargetAudiencePh}
-                  value={brain.targetAudience}
-                  onChange={(e) => setBrain((b) => ({ ...b, targetAudience: e.target.value }))}
-                  className="mt-1.5 w-full rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-fg placeholder-fg-muted focus:border-brand focus:bg-surface focus:outline-none transition-all resize-none"
-                />
-              </div>
-
-              {/* Tag-style inputs: Tone Keywords, Banned Phrases, Competitors */}
-              <div className="grid gap-4 sm:grid-cols-3">
-                <TagInput label={t.brainToneKeywords} placeholder={t.brainToneKeywordsPh} icon={<Sparkles className="h-3.5 w-3.5 text-brand" />}
-                  tags={brain.toneKeywords} onAdd={(v) => setBrain((b) => ({ ...b, toneKeywords: [...b.toneKeywords, v] }))}
-                  onRemove={(i) => setBrain((b) => ({ ...b, toneKeywords: b.toneKeywords.filter((_, j) => j !== i) }))}
-                  inputValue={keywordInput} onInputChange={setKeywordInput} />
-                <TagInput label={t.brainBannedPhrases} placeholder={t.brainBannedPhrasesPh} icon={<MessageSquareWarning className="h-3.5 w-3.5 text-risk" />}
-                  tags={brain.bannedPhrases} onAdd={(v) => setBrain((b) => ({ ...b, bannedPhrases: [...b.bannedPhrases, v] }))}
-                  onRemove={(i) => setBrain((b) => ({ ...b, bannedPhrases: b.bannedPhrases.filter((_, j) => j !== i) }))}
-                  inputValue={bannedInput} onInputChange={setBannedInput} />
-                <TagInput label={t.brainCompetitors} placeholder={t.brainCompetitorsPh} icon={<Users className="h-3.5 w-3.5 text-accent" />}
-                  tags={brain.competitors} onAdd={(v) => setBrain((b) => ({ ...b, competitors: [...b.competitors, v] }))}
-                  onRemove={(i) => setBrain((b) => ({ ...b, competitors: b.competitors.filter((_, j) => j !== i) }))}
-                  inputValue={competitorInput} onInputChange={setCompetitorInput} />
-              </div>
-
-              <div className="flex justify-end pt-2 border-t border-hairline">
-                <button type="button" onClick={() => void handleBrainSave()} disabled={brainSaving} className="btn-primary text-sm disabled:opacity-60">
-                  <Save className="h-4 w-4" /> {brainSaving ? (locale === "en" ? "Saving..." : "保存中...") : t.brainSave}
-                </button>
-              </div>
-            </div>
-          )}
         </section>
       )}
 
@@ -482,69 +354,6 @@ export default function GuardrailsPage() {
           ))}
         </div>
       </section>
-    </div>
-  );
-}
-
-/* ── Tag Input helper component ── */
-
-function TagInput({
-  label,
-  placeholder,
-  icon,
-  tags,
-  onAdd,
-  onRemove,
-  inputValue,
-  onInputChange,
-}: {
-  label: string;
-  placeholder: string;
-  icon: React.ReactNode;
-  tags: string[];
-  onAdd: (value: string) => void;
-  onRemove: (index: number) => void;
-  inputValue: string;
-  onInputChange: (value: string) => void;
-}) {
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const val = inputValue.trim();
-      if (val && !tags.includes(val)) {
-        onAdd(val);
-        onInputChange("");
-      }
-    }
-  }
-
-  return (
-    <div>
-      <label className="flex items-center gap-1.5 text-xs font-bold text-fg uppercase tracking-wide">
-        {icon} {label}
-      </label>
-      <div className="mt-1.5 flex flex-wrap gap-1.5 rounded-lg border border-hairline bg-surface-2 p-2 min-h-[42px]">
-        {tags.map((tag, i) => (
-          <span key={i} className="inline-flex items-center gap-1 rounded-md bg-brand/10 text-brand text-xs px-2 py-0.5 font-medium">
-            {tag}
-            <button
-              type="button"
-              onClick={() => onRemove(i)}
-              className="rounded-sm hover:bg-brand/20 transition-colors"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </span>
-        ))}
-        <input
-          type="text"
-          placeholder={tags.length === 0 ? placeholder : ""}
-          value={inputValue}
-          onChange={(e) => onInputChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="min-w-[80px] flex-1 bg-transparent text-sm text-fg placeholder-fg-muted focus:outline-none"
-        />
-      </div>
     </div>
   );
 }

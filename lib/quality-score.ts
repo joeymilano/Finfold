@@ -130,8 +130,8 @@ function scoreBrandConsistency(output: KitOutput, brain: BrandBrain): ScoreDimen
   let reasonEn: string;
 
   if (!brain.brandName) {
-    reasonZh = "未配置 Brand Brain，无法做品牌一致性检测";
-    reasonEn = "Brand Brain not configured — fill it in Guardrails for better scoring";
+    reasonZh = "未配置品牌记忆，暂时无法做品牌一致性检测";
+    reasonEn = "Brand Memory is not configured — fill it in for better scoring";
   } else if (bannedHits.length > 0) {
     reasonZh = `包含 ${bannedHits.length} 个禁用词："${bannedHits[0]}"`;
     reasonEn = `Contains ${bannedHits.length} banned phrase(s): "${bannedHits[0]}"`;
@@ -140,7 +140,7 @@ function scoreBrandConsistency(output: KitOutput, brain: BrandBrain): ScoreDimen
     reasonEn = "Tone keywords well-represented, matches brand voice";
   } else {
     reasonZh = "语气关键词覆盖不足，建议参考品牌规则调整";
-    reasonEn = "Few tone keywords detected — revisit your Brand Brain guidelines";
+    reasonEn = "Few tone keywords detected — revisit your Brand Memory guidelines";
   }
 
   return { key: "brand", labelZh: "品牌一致性", labelEn: "Brand Consistency", score, reasonZh, reasonEn };

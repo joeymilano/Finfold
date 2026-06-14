@@ -1,5 +1,6 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
@@ -14,16 +15,29 @@ import {
   ShieldCheck,
   Zap,
   Loader2,
+  MessageSquare,
+  Send,
   Sparkles
 } from "lucide-react";
 import { Panel } from "@/components/ui/Panel";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Tag, type TagTone } from "@/components/ui/Tag";
-import { agentMetrics, agentPipeline, agentRunLog, agentWorkflows, type AgentWorkflowStatus } from "@/lib/agent-data";
+import { agentPipeline, agentRunLog, agentWorkflows, type AgentWorkflowStatus } from "@/lib/agent-data";
 import { useLocale } from "@/hooks/useLocale";
+
+type ChatMessage = {
+  role: "assistant" | "user";
+  content: string;
+};
 
 export function AgentAutomationCenter() {
   const locale = useLocale();
+  const initialChatMessages = useMemo<ChatMessage[]>(
+    () => locale === "en"
+      ? [{ role: "assistant", content: "Ask me what to create next, how to reuse your brand memory, or which channel needs attention." }]
+      : [{ role: "assistant", content: "你可以问我下一步该创作什么、如何使用品牌记忆，或者哪个平台需要补内容。" }],
+    [locale]
+  );
 
   const statusStyle: Record<AgentWorkflowStatus, { label: string; tone: TagTone; live?: boolean }> = {
     running: { label: locale === "en" ? "Scanning" : "巡检中", tone: "brand", live: true },
@@ -33,11 +47,16 @@ export function AgentAutomationCenter() {
   };
 
   const copy = locale === "en" ? {
-    headerEyebrow: "Agentic Content Operations",
-    headerTitle: "Auto-detect channel gaps, trigger production, QA and scheduling.",
-    headerDesc: "The Agent layer is the core engine of the workflow: it analyzes Dashboard coverage in real time, invokes Workbench production when gaps are found, applies brand Guardrails for QA and scheduling, and hands off judgment calls to humans.",
-    runBtn: "Run Operations Scan",
-    runningBtn: "Running Operations Scan",
+    headerEyebrow: "Agent Chat",
+    headerTitle: "Chat with your content agent.",
+    headerDesc: "The Agent reads your saved brand memory, content history, and channel context, then helps decide what to create or improve next.",
+    runBtn: "Run Scan",
+    runningBtn: "Running Scan",
+    chatTitle: "Agent chat",
+    chatPlaceholder: "Ask what to create next...",
+    chatSend: "Send",
+    chatThinking: "Thinking...",
+    chatFallback: "The agent could not reply yet. Check login and Letta configuration.",
     backDashboard: "Back to Dashboard",
     activeFlows: "flows running or listening",
     pipelineEyebrow: "Automation Pipeline",
@@ -54,12 +73,17 @@ export function AgentAutomationCenter() {
     humanApprovalDesc: "Agents handle pipeline monitoring, auto-production and scheduling, but the system always maintains a 'pending review' human approval state before brand risk checks, compliance review, and final publishing.",
     simRunning: "Operations scan running…",
   } : {
-    headerEyebrow: "Agentic Content Operations",
-    headerTitle: "自动巡检渠道缺口，发起生产、质检与排期。",
-    headerDesc: "Agent 层是流程流转的核心引擎：实时分析 Dashboard 覆盖度数据，发现缺口时调用 Workbench 生产能力，并注入品牌 Guardrails 完成质检与排期，把需要判断的事项交回人工。",
-    runBtn: "运行运营巡检",
-    runningBtn: "正在运行运营巡检",
-    backDashboard: "返回运营 Dashboard",
+    headerEyebrow: "AI 助手",
+    headerTitle: "和你的内容 Agent 对话。",
+    headerDesc: "Agent 会读取你保存的品牌记忆、内容历史和平台上下文，帮你判断下一步该创作什么、修改什么。",
+    runBtn: "运行检查",
+    runningBtn: "正在检查",
+    chatTitle: "Agent 对话",
+    chatPlaceholder: "问问下一步该创作什么...",
+    chatSend: "发送",
+    chatThinking: "思考中...",
+    chatFallback: "Agent 暂时无法回复。请检查登录状态和 Letta 配置。",
+    backDashboard: "返回仪表板",
     activeFlows: "个流程正在运行或侦听外部信号",
     pipelineEyebrow: "自动化流水线",
     pipelineTitle: "Agent 自驱动内容引擎环路",
@@ -87,8 +111,45 @@ export function AgentAutomationCenter() {
   ]);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationStep, setSimulationStep] = useState(0);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState(initialChatMessages);
+  const [chatSending, setChatSending] = useState(false);
 
   const activeCount = useMemo(() => runningIds.length + (isSimulating ? 1 : 0), [runningIds, isSimulating]);
+
+  useEffect(() => {
+    setChatMessages(initialChatMessages);
+  }, [initialChatMessages]);
+
+  async function sendAgentMessage(event: FormEvent) {
+    event.preventDefault();
+    const message = chatInput.trim();
+    if (!message || chatSending) return;
+
+    setChatInput("");
+    setChatSending(true);
+    setChatMessages((current) => [...current, { role: "user", content: message }]);
+
+    try {
+      const response = await fetch("/api/letta/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      const data = (await response.json().catch(() => ({}))) as { reply?: string; error?: string };
+      if (!response.ok || !data.reply) {
+        throw new Error(data.error ?? copy.chatFallback);
+      }
+      setChatMessages((current) => [...current, { role: "assistant", content: data.reply! }]);
+    } catch (error) {
+      setChatMessages((current) => [
+        ...current,
+        { role: "assistant", content: error instanceof Error ? error.message : copy.chatFallback }
+      ]);
+    } finally {
+      setChatSending(false);
+    }
+  }
 
   function runWorkflow(id: string, agent: string, name: string) {
     setRunningIds((current) => (current.includes(id) ? current : [id, ...current]));
@@ -243,30 +304,45 @@ export function AgentAutomationCenter() {
           </div>
         </Panel>
 
-        <Panel command className="relative overflow-hidden p-6 md:p-7">
-          {isSimulating ? <div className="absolute inset-0 bg-brand/5 backdrop-blur-[1px] transition-all" /> : null}
-
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/50">Agent running state</p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <p className="tabular text-5xl font-bold text-white">{activeCount}</p>
-            <span className="text-xs text-white/50">{copy.activeFlows}</span>
+        <Panel command className="relative overflow-hidden p-5 md:p-6">
+          <div className="flex items-center justify-between gap-3">
+            <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-white/60">
+              <MessageSquare className="h-4 w-4 text-brand" />
+              {copy.chatTitle}
+            </p>
+            <span className="text-xs text-white/45">{activeCount} {copy.activeFlows}</span>
           </div>
 
-          <div className="relative z-10 mt-6 grid gap-3.5">
-            {agentMetrics.map((metric) => (
-              <div key={metric.label} className="rounded-xl border border-white/10 bg-white/[0.04] p-3.5 transition-colors hover:bg-white/[0.06]">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold text-white/70">
-                    {locale === "en" ? metric.labelEn : metric.label}
-                  </p>
-                  <p className="tabular text-sm font-bold text-white">{metric.value}</p>
-                </div>
-                <p className="mt-1 text-[11px] font-medium leading-relaxed text-white/50">
-                  {locale === "en" ? metric.detailEn : metric.detail}
-                </p>
+          <div className="mt-4 grid max-h-[300px] gap-3 overflow-y-auto pr-1">
+            {chatMessages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}-${message.content.slice(0, 18)}`}
+                className={message.role === "user"
+                  ? "ml-8 rounded-xl border border-brand/30 bg-brand/15 p-3 text-sm leading-6 text-white"
+                  : "mr-8 rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm leading-6 text-white/75"}
+              >
+                {message.content}
               </div>
             ))}
+            {chatSending ? (
+              <div className="mr-8 rounded-xl border border-white/10 bg-white/[0.05] p-3 text-sm text-white/60">
+                {copy.chatThinking}
+              </div>
+            ) : null}
           </div>
+
+          <form onSubmit={sendAgentMessage} className="mt-4 flex gap-2">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(event) => setChatInput(event.target.value)}
+              placeholder={copy.chatPlaceholder}
+              className="min-w-0 flex-1 rounded-md border border-white/10 bg-white/[0.06] px-3 py-2 text-sm text-white placeholder-white/35 focus:border-brand focus:outline-none"
+            />
+            <button type="submit" disabled={!chatInput.trim() || chatSending} className="btn-primary px-3 disabled:opacity-50" aria-label={copy.chatSend}>
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
         </Panel>
       </section>
 

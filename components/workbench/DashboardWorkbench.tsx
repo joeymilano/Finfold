@@ -222,7 +222,7 @@ export function DashboardWorkbench() {
         }
       }
 
-      // Load account-level Brand Brain when available, with localStorage fallback
+      // Load account-level brand memory when available, with localStorage fallback
       let brandBrain = getBrandBrain();
       if (entitlement.authenticated) {
         try {

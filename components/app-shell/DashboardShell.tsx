@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  CreditCard,
+  Bot,
   FileStack,
-  Settings,
+  Gauge,
+  MessageSquare,
+  ShieldCheck,
   WandSparkles
 } from "lucide-react";
 import { FishLogo } from "@/components/app-shell/FishLogo";
@@ -19,10 +21,12 @@ import { brand } from "@/lib/brand";
 import { getStoredLocale, type Locale } from "@/lib/theme";
 
 const navItemDefs = [
-  { href: "/workbench", zh: "内容生产区", en: "Workbench", descZh: "生成与编辑", descEn: "Generate", icon: WandSparkles },
-  { href: "/packages", zh: "内容套件", en: "Content Kits", descZh: "历史记录", descEn: "History", icon: FileStack },
-  { href: "/billing", zh: "订阅与额度", en: "Billing", descZh: "计划与用量", descEn: "Plans & Usage", icon: CreditCard },
-  { href: "/settings", zh: "偏好设置", en: "Settings", descZh: "账号与偏好", descEn: "Preferences", icon: Settings },
+  { href: "/dashboard", zh: "仪表板", en: "Dashboard", descZh: "概览", descEn: "Overview", icon: Gauge },
+  { href: "/workbench", zh: "创作台", en: "Workbench", descZh: "生成与编辑", descEn: "Create & edit", icon: WandSparkles },
+  { href: "/packages", zh: "内容库", en: "Saved Kits", descZh: "已保存内容", descEn: "Saved output", icon: FileStack },
+  { href: "/brand-memory", zh: "品牌记忆", en: "Brand Memory", descZh: "产品与语气", descEn: "Product memory", icon: MessageSquare },
+  { href: "/guardrails", zh: "品牌规则", en: "Brand Rules", descZh: "禁用词与规范", descEn: "Rules", icon: ShieldCheck },
+  { href: "/agents", zh: "AI 助手", en: "Agent Chat", descZh: "对话与执行", descEn: "Chat & run", icon: Bot },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
