@@ -28,7 +28,7 @@ export function OperatingDashboard() {
   const locale = useLocale();
   const copy = locale === "en" ? {
     title: "Today’s go-global marketing focus",
-    desc: "Keep the dashboard quiet: what is growing, what is missing, and what should be created next.",
+    desc: "",
     create: "Create in Workbench",
     askAgent: "Ask Agent",
     memory: "Update Brand Memory",
@@ -43,7 +43,7 @@ export function OperatingDashboard() {
     channelLabels: { reach: "Reach", gap: "Gap", action: "Action" }
   } : {
     title: "今天最该做什么出海营销？",
-    desc: "仪表板只保留决策需要的信息：哪里在增长、哪里有缺口、下一步该创作什么。",
+    desc: "",
     create: "去创作台执行",
     askAgent: "问 AI 助手",
     memory: "更新品牌记忆",
@@ -69,9 +69,11 @@ export function OperatingDashboard() {
             <h1 className="text-4xl font-black leading-tight text-fg md:text-6xl">
               {copy.title}
             </h1>
-            <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-fg-muted">
-              {copy.desc}
-            </p>
+            {copy.desc ? (
+              <p className="mt-4 max-w-2xl text-base font-medium leading-7 text-fg-muted">
+                {copy.desc}
+              </p>
+            ) : null}
           </div>
 
           <div className="mt-8 grid gap-3 md:grid-cols-3">

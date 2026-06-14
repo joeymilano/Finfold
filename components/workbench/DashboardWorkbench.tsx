@@ -292,14 +292,9 @@ export function DashboardWorkbench() {
         <div className="flex min-w-0 flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="min-w-0">
             <p className="eyebrow">Finfold Workbench</p>
-            <h1 className="mt-3 max-w-4xl break-words text-3xl font-black leading-[1.02] text-fg sm:text-4xl md:text-6xl">
+            <h1 className="mt-3 max-w-4xl break-words text-3xl font-black leading-[1.02] text-fg sm:text-4xl md:text-5xl">
               {locale === "en" ? "Workbench" : "创作台"}
             </h1>
-            <p className="mt-4 max-w-3xl text-sm font-semibold leading-6 text-fg-muted md:text-base">
-              {locale === "en"
-                ? "Start with one product update, choose the channels that matter, and review ready-to-edit drafts in one focused workspace."
-                : "从一次产品更新开始，选择要发布的平台，在一个聚焦的工作台里查看可编辑草稿。"}
-            </p>
           </div>
           <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm">
             <span className="inline-flex items-center gap-2 rounded-md border border-hairline bg-surface-2 px-3 py-2 font-semibold text-fg-muted">

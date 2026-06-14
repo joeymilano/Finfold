@@ -49,13 +49,8 @@ async function generateViaLetta(
 
     return outputs;
   } catch (error) {
-    console.error("Letta generation failed:", error);
-    // Fall back to direct LLM if Letta fails
-    if (process.env.LLM_API_KEY) {
-      console.warn("Falling back to direct LLM after Letta failure.");
-      return generateViaLLM(input);
-    }
-    throw new Error("AI generation is temporarily unavailable. Please try again.");
+    console.error("Letta generation failed, falling back to direct LLM:", error);
+    return generateViaLLM(input);
   }
 }
 
