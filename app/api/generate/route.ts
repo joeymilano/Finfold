@@ -9,7 +9,7 @@ import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
 import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
 import { createLettaAgent, getLettaAgent, isLettaConfigured } from "@/lib/letta";
-import { isImageGenConfigured } from "@/lib/image-gen";
+import { generateImage, isImageGenConfigured } from "@/lib/image-gen";
 
 export async function POST(request: Request) {
   try {
@@ -252,50 +252,43 @@ async function enrichWithImages(
     return outputs;
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  // Per-image timeout so a single slow/hung image never stalls the whole
+  // generate response. A timed-out or failed image degrades gracefully to
+  // an output with no cover image.
+  const IMAGE_TIMEOUT_MS = 20_000;
 
-  // Generate images in parallel (max 3 concurrent)
-  const BATCH_SIZE = 3;
-  const results: KitOutput[] = [];
+  // Generate all images concurrently. We call the image library directly
+  // instead of self-fetching /api/image/generate — that internal HTTP
+  // round-trip back through the edge added latency for every image with
+  // no benefit (the route is a thin wrapper around generateImage()).
+  const enriched = await Promise.allSettled(
+    outputs.map(async (output) => {
+      const prompt =
+        output.imagePrompt ||
+        `${output.title}. ${ideaText}. Professional social media cover image, eye-catching, modern design.`;
 
-  for (let i = 0; i < outputs.length; i += BATCH_SIZE) {
-    const batch = outputs.slice(i, i + BATCH_SIZE);
-    const enriched = await Promise.allSettled(
-      batch.map(async (output) => {
-        // Use the LLM-generated imagePrompt, or fall back to a prompt
-        // derived from the output title and ideaText
-        const prompt = output.imagePrompt || `${output.title}. ${ideaText}. Professional social media cover image, eye-catching, modern design.`;
-
-        try {
-          const res = await fetch(`${baseUrl}/api/image/generate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt, platform: output.platform }),
-          });
-
-          if (!res.ok) {
-            console.warn(`[generate] Image generation failed for ${output.platform}: ${res.status}`);
-            return output;
-          }
-
-          const data = (await res.json()) as { url?: string; error?: string };
-          if (data.url) {
-            return { ...output, imageUrl: data.url, imagePrompt: prompt };
-          }
-          return output;
-        } catch (error) {
-          console.warn(`[generate] Image generation error for ${output.platform}:`, error instanceof Error ? error.message : String(error));
-          return output;
+      try {
+        const result = await Promise.race([
+          generateImage(prompt),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("image-timeout")), IMAGE_TIMEOUT_MS)
+          )
+        ]);
+        if (result?.url) {
+          return { ...output, imageUrl: result.url, imagePrompt: prompt };
         }
-      })
-    );
-
-    for (const r of enriched) {
-      if (r.status === "fulfilled") {
-        results.push(r.value);
+        return output;
+      } catch (error) {
+        console.warn(
+          `[generate] Image generation failed for ${output.platform}:`,
+          error instanceof Error ? error.message : String(error)
+        );
+        return output;
       }
-    }
-  }
+    })
+  );
 
-  return results;
+  // Promise.allSettled preserves input order; rejected entries shouldn't
+  // happen (we catch inside), but fall back to the original output if so.
+  return enriched.map((r, i) => (r.status === "fulfilled" ? r.value : outputs[i]));
 }

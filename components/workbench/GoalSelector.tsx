@@ -8,6 +8,7 @@ type GoalSelectorProps = {
   value: GoalId;
   onChange: (value: GoalId) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
 const englishGoalLabels: Record<GoalId, string> = {
@@ -17,7 +18,7 @@ const englishGoalLabels: Record<GoalId, string> = {
   "event-promo": "Event promotion"
 };
 
-export function GoalSelector({ value, onChange, locale }: GoalSelectorProps) {
+export function GoalSelector({ value, onChange, locale, disabled = false }: GoalSelectorProps) {
   const copy = dashboardCopy[locale];
 
   return (
@@ -35,7 +36,8 @@ export function GoalSelector({ value, onChange, locale }: GoalSelectorProps) {
               key={goal.id}
               type="button"
               onClick={() => onChange(goal.id)}
-              className={`focus-ring rounded-sm border px-3 py-3 text-left transition ${
+              disabled={disabled}
+              className={`focus-ring rounded-sm border px-3 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
                 selected ? "border-brand bg-brand text-white shadow-glow-brand" : "border-hairline bg-surface hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2"
               }`}
             >

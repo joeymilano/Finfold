@@ -61,7 +61,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
       <div className="mx-auto w-full max-w-[1680px] lg:grid lg:grid-cols-[280px_1fr]">
         {/* Sidebar — desktop only */}
-        <aside className="hidden flex-col border-r border-hairline bg-surface/88 backdrop-blur-xl lg:flex lg:min-h-screen">
+        <aside className="hidden flex-col border-r border-hairline bg-surface/88 backdrop-blur-xl lg:flex lg:sticky lg:top-0 lg:self-start lg:h-screen lg:overflow-y-auto">
           {/* Logo + toggles */}
           <div className="flex items-center justify-between gap-2 px-4 py-3.5">
             <Link href="/workbench" className="group flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-surface-2">

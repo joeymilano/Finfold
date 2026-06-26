@@ -110,9 +110,9 @@ export function AgentAutomationCenter() {
   }
 
   return (
-    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto grid max-w-[1320px] gap-5 pb-10">
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <Panel command className="min-h-[680px] p-5 md:p-7">
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto grid max-w-[1320px] gap-5 pb-10 lg:h-[calc(100dvh-3.75rem)] lg:pb-0">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px] lg:h-full">
+        <Panel command className="flex flex-col p-5 md:p-7 lg:h-full">
           <div className="flex flex-col gap-4 border-b border-white/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold text-brand">
@@ -131,7 +131,7 @@ export function AgentAutomationCenter() {
             </span>
           </div>
 
-          <div className="mt-5 grid min-h-[330px] content-start gap-4 overflow-y-auto pr-1">
+          <div className="mt-5 flex flex-1 flex-col gap-4 overflow-y-auto pr-1 min-h-0">
             {chatMessages.map((message, index) => (
               <div
                 key={`${message.role}-${index}-${message.content.slice(0, 18)}`}

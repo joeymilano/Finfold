@@ -22,7 +22,10 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      throw error;
+      // Supabase errors are plain objects (not Error instances), so log the
+      // full detail here — otherwise the generic catch below swallows it.
+      console.error("[api/kits] Supabase query failed:", JSON.stringify(error));
+      throw new Error(`kits query failed: ${error.message ?? error.code ?? "unknown"}`);
     }
 
     const mapped: ContentKit[] =

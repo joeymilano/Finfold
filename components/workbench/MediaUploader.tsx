@@ -10,9 +10,10 @@ type MediaUploaderProps = {
   assets: MediaAsset[];
   onChange: (assets: MediaAsset[]) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
-export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) {
+export function MediaUploader({ assets, onChange, locale, disabled = false }: MediaUploaderProps) {
   const copy = dashboardCopy[locale];
   const [isUploading, setIsUploading] = useState(false);
 
@@ -55,19 +56,21 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
     onChange(assets.filter((asset) => asset.id !== id));
   }
 
+  const isBusy = isUploading || disabled;
+
   return (
     <section className="panel min-w-0 rounded-md p-4">
       <div className="mb-3 flex min-w-0 items-center gap-2">
         <ImagePlus className="h-4 w-4 text-fg" />
         <h2 className="min-w-0 break-words text-sm font-black">{copy.mediaTitle}</h2>
       </div>
-      <label className={`focus-within:outline-fg flex min-h-32 min-w-0 flex-col items-center justify-center rounded-sm border border-dashed border-hairline bg-surface p-4 text-center transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2 ${isUploading ? "cursor-wait opacity-60" : "cursor-pointer"}`}>
+      <label className={`focus-within:outline-fg flex min-h-32 min-w-0 flex-col items-center justify-center rounded-sm border border-dashed border-hairline bg-surface p-4 text-center transition hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2 ${isBusy ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
         <input
           type="file"
           multiple
           accept="image/*,video/*"
           className="sr-only"
-          disabled={isUploading}
+          disabled={isBusy}
           onChange={(event) => {
             void handleFiles(event.target.files);
             event.target.value = "";
@@ -92,9 +95,10 @@ export function MediaUploader({ assets, onChange, locale }: MediaUploaderProps) 
               <button
                 type="button"
                 onClick={() => removeAsset(asset.id)}
+                disabled={disabled}
                 aria-label={locale === "en" ? "Remove" : "删除"}
                 title={locale === "en" ? "Remove" : "删除"}
-                className="focus-ring shrink-0 rounded-sm p-1 text-fg-muted transition-colors hover:bg-surface-2 hover:text-risk"
+                className="focus-ring shrink-0 rounded-sm p-1 text-fg-muted transition-colors hover:bg-surface-2 hover:text-risk disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <X className="h-3.5 w-3.5" />
               </button>

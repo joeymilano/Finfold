@@ -2,11 +2,99 @@ import { z } from "zod";
 import type { GenerateRequest, KitOutput } from "@/lib/content-schema";
 import { kitOutputSchema } from "@/lib/content-schema";
 import { buildGenerationPrompt } from "@/lib/prompts";
+import { platforms } from "@/lib/platforms";
+import type { PlatformId } from "@/lib/platforms";
 import { getSharedLettaAgentId, isLettaConfigured, lettaGenerationModel, sendLettaStructuredRequest } from "@/lib/letta";
 
 const llmResponseSchema = z.object({
   outputs: z.array(kitOutputSchema)
 });
+
+const VALID_PLATFORM_IDS = new Set<string>(platforms.map((platform) => platform.id));
+
+/** Common aliases LLMs emit instead of our canonical platform ids. */
+const PLATFORM_ALIASES: Record<string, PlatformId> = {
+  twitter: "x",
+  "x/twitter": "x",
+  "x (twitter)": "x",
+  tweet: "x",
+  producthunt: "product-hunt",
+  product_hunt: "product-hunt",
+  "product hunt": "product-hunt",
+  ph: "product-hunt",
+  hackernews: "hacker-news",
+  hacker_news: "hacker-news",
+  "hacker news": "hacker-news",
+  hn: "hacker-news",
+  "show hn": "hacker-news",
+  indiehackers: "indie-hackers",
+  indie_hackers: "indie-hackers",
+  "indie hackers": "indie-hackers",
+  medium: "medium-substack",
+  substack: "medium-substack",
+  "medium/substack": "medium-substack",
+  medium_substack: "medium-substack",
+  weixin: "wechat",
+  "wechat official": "wechat",
+  "wechat-official": "wechat",
+  rednote: "xiaohongshu",
+  red: "xiaohongshu",
+  xhs: "xiaohongshu",
+  "little red book": "xiaohongshu",
+  "wechat moments": "moments",
+  "wechat-moments": "moments",
+  friends: "moments",
+  pengyouquan: "moments"
+};
+
+/**
+ * Map a model-emitted platform string onto a canonical PlatformId.
+ * Returns null when no confident match exists (so the caller can drop it).
+ */
+function normalizePlatformId(raw: unknown): PlatformId | null {
+  if (typeof raw !== "string") {
+    return null;
+  }
+  const key = raw.trim().toLowerCase();
+  if (VALID_PLATFORM_IDS.has(key)) {
+    return key as PlatformId;
+  }
+  if (PLATFORM_ALIASES[key]) {
+    return PLATFORM_ALIASES[key];
+  }
+  // Collapse separators/spaces (e.g. "product hunt" -> "product-hunt").
+  const dashed = key.replace(/[\s_]+/g, "-");
+  if (VALID_PLATFORM_IDS.has(dashed)) {
+    return dashed as PlatformId;
+  }
+  if (PLATFORM_ALIASES[dashed]) {
+    return PLATFORM_ALIASES[dashed];
+  }
+  return null;
+}
+
+/**
+ * Rewrite each output's `platform` field to a canonical id BEFORE strict
+ * schema validation, so aliases like "twitter" don't cause the whole
+ * response to be rejected by the enum.
+ */
+function normalizeOutputPlatforms(parsedJson: unknown): unknown {
+  if (
+    parsedJson &&
+    typeof parsedJson === "object" &&
+    Array.isArray((parsedJson as { outputs?: unknown }).outputs)
+  ) {
+    for (const output of (parsedJson as { outputs: unknown[] }).outputs) {
+      if (output && typeof output === "object" && "platform" in output) {
+        const normalized = normalizePlatformId((output as { platform: unknown }).platform);
+        if (normalized) {
+          (output as { platform: string }).platform = normalized;
+        }
+      }
+    }
+  }
+  return parsedJson;
+}
 
 /**
  * Is a real OpenAI-compatible /chat/completions endpoint configured?
@@ -85,39 +173,50 @@ async function generateViaLetta(
 ): Promise<KitOutput[]> {
   try {
     // Letta agents (especially small models) don't always return every
-    // requested platform in one shot, or may wrap JSON in prose. Collect
-    // valid outputs across a few attempts, re-requesting only what's still
-    // missing, and accept a partial-but-non-empty result rather than failing
-    // the whole generation.
+    // requested platform in one shot, or may wrap JSON in prose. They also
+    // hit output token limits when asked for many long-form platforms at
+    // once (Chinese platforms alone can be 1500–3000 chars each), which
+    // TRUNCATES the JSON. To avoid that, request platforms in small batches
+    // and salvage every valid output even from a truncated response.
     const collected = new Map<string, KitOutput>();
-    const MAX_ATTEMPTS = 3;
+    const BATCH_SIZE = 2;
+    const MAX_ATTEMPTS_PER_BATCH = 2;
 
-    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-      const missing = input.platforms.filter((platform) => !collected.has(platform));
-      if (missing.length === 0) {
-        break;
-      }
+    for (let i = 0; i < input.platforms.length; i += BATCH_SIZE) {
+      const batch = input.platforms.slice(i, i + BATCH_SIZE);
 
-      const prompt = buildGenerationPrompt({ ...input, platforms: missing });
-      let content: string;
-      try {
-        content = await sendLettaStructuredRequest(agentId, prompt, lettaGenerationModel());
-      } catch (sendError) {
-        // Network / agent error mid-loop: stop retrying and let the
-        // collected-so-far check below decide success vs. failure.
-        console.error(`Letta request failed (attempt ${attempt + 1}):`, sendError);
-        break;
-      }
+      for (let attempt = 0; attempt < MAX_ATTEMPTS_PER_BATCH; attempt += 1) {
+        const missing = batch.filter((platform) => !collected.has(platform));
+        if (missing.length === 0) {
+          break;
+        }
 
-      try {
-        const parsed = llmResponseSchema.parse(parseJsonObject(content));
-        for (const output of parsed.outputs) {
+        const prompt = buildGenerationPrompt({ ...input, platforms: missing });
+        let content: string;
+        try {
+          content = await sendLettaStructuredRequest(agentId, prompt, lettaGenerationModel());
+        } catch (sendError) {
+          console.error(
+            `Letta request failed (batch [${missing.join(",")}] attempt ${attempt + 1}):`,
+            sendError
+          );
+          continue;
+        }
+
+        const salvaged = salvageOutputs(content);
+        const accepted: string[] = [];
+        for (const output of salvaged) {
           if (input.platforms.includes(output.platform) && !collected.has(output.platform)) {
             collected.set(output.platform, output);
+            accepted.push(output.platform);
           }
         }
-      } catch (parseError) {
-        console.error(`Letta response parse failed (attempt ${attempt + 1}):`, parseError);
+
+        console.error(
+          `[letta-diag] batch=[${missing.join(",")}] attempt ${attempt + 1} ` +
+            `contentLen=${content.length} salvaged=${salvaged.length} ` +
+            `accepted=[${accepted.join(",")}] collectedTotal=${collected.size}`
+        );
       }
     }
 
@@ -201,13 +300,11 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
       throw new Error("LLM returned an empty response.");
     }
 
-    const parsedJson = parseJsonObject(content);
-    const parsed = llmResponseSchema.parse(parsedJson);
     const requested = new Set(input.platforms);
-    const outputs = parsed.outputs.filter((output) => requested.has(output.platform));
+    const outputs = salvageOutputs(content).filter((output) => requested.has(output.platform));
 
-    if (outputs.length !== input.platforms.length) {
-      throw new Error("LLM response did not include every requested platform.");
+    if (outputs.length === 0) {
+      throw new Error("LLM response did not include any requested platform.");
     }
 
     return outputs;
@@ -218,23 +315,119 @@ async function generateViaLLM(input: GenerateRequest): Promise<KitOutput[]> {
   }
 }
 
-function parseJsonObject(content: string): unknown {
-  const trimmed = content.trim();
-  const withoutFence = trimmed
+/**
+ * Scan for the first complete, brace-balanced JSON object in a string,
+ * correctly skipping braces that occur inside quoted strings and escapes.
+ * Returns the substring (including the outer braces) or null.
+ */
+function extractFirstJsonObject(text: string): string | null {
+  const start = text.indexOf("{");
+  if (start === -1) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Salvage as many valid KitOutput objects as possible from a model response,
+ * even when the overall JSON is TRUNCATED (e.g. the model hit its output
+ * token limit mid-object). Strategy:
+ *  1. Try strict parse first (fast path for well-formed responses).
+ *  2. Otherwise, scan the string for every brace-balanced {...} object and
+ *     validate each one individually with kitOutputSchema. Incomplete objects
+ *     at the truncation point are simply skipped.
+ *
+ * This is what prevents one long/truncated platform from discarding all the
+ * other fully-generated platforms in the same response.
+ */
+function salvageOutputs(content: string): KitOutput[] {
+  const trimmed = content
+    .trim()
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/i, "")
     .trim();
 
+  // Fast path: the whole thing parses cleanly.
   try {
-    return JSON.parse(withoutFence);
+    const parsed = llmResponseSchema.parse(normalizeOutputPlatforms(JSON.parse(trimmed)));
+    return parsed.outputs;
   } catch {
-    // Agent may wrap the JSON in prose. Extract the outermost {...} block.
-    const start = withoutFence.indexOf("{");
-    const end = withoutFence.lastIndexOf("}");
-    if (start !== -1 && end > start) {
-      return JSON.parse(withoutFence.slice(start, end + 1));
-    }
-    throw new Error("Response did not contain valid JSON.");
+    // Fall through to per-object salvage.
   }
+
+  const results: KitOutput[] = [];
+  let searchFrom = trimmed.indexOf("{");
+
+  // Skip the outermost wrapper `{ "outputs": [` by starting the scan at the
+  // first object INSIDE the outputs array when present.
+  const outputsKey = trimmed.indexOf('"outputs"');
+  if (outputsKey !== -1) {
+    const bracket = trimmed.indexOf("[", outputsKey);
+    if (bracket !== -1) {
+      searchFrom = bracket + 1;
+    }
+  }
+
+  while (searchFrom !== -1 && searchFrom < trimmed.length) {
+    const nextBrace = trimmed.indexOf("{", searchFrom);
+    if (nextBrace === -1) {
+      break;
+    }
+    const objStr = extractFirstJsonObject(trimmed.slice(nextBrace));
+    if (!objStr) {
+      // Truncated final object — nothing more to salvage.
+      break;
+    }
+    try {
+      const candidate = JSON.parse(objStr) as Record<string, unknown>;
+      if (candidate && typeof candidate === "object" && "platform" in candidate) {
+        const normalized = normalizePlatformId(candidate.platform);
+        if (normalized) {
+          candidate.platform = normalized;
+        }
+        const validated = kitOutputSchema.safeParse(candidate);
+        if (validated.success) {
+          results.push(validated.data);
+        }
+      }
+    } catch {
+      // Not a valid object on its own — skip it.
+    }
+    searchFrom = nextBrace + objStr.length;
+  }
+
+  return results;
 }
+

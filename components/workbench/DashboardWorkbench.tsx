@@ -338,8 +338,8 @@ export function DashboardWorkbench() {
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">1</span>
             <h2 className="text-sm font-semibold text-fg">{locale === "en" ? "Product Assets & Media" : "产品资产与素材"}</h2>
           </div>
-          <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} />
-          <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} />
+          <IdeaInput value={ideaText} onChange={setIdeaText} locale={locale} disabled={isLoading} />
+          <MediaUploader assets={mediaAssets} onChange={setMediaAssets} locale={locale} disabled={isLoading} />
         </div>
 
         <div className="workbench-scroll grid content-start gap-4 xl:max-h-[min(860px,calc(100vh-128px))] xl:overflow-y-auto xl:pr-1">
@@ -348,9 +348,9 @@ export function DashboardWorkbench() {
             <span className="flex h-7 w-7 items-center justify-center rounded-md bg-fg text-xs font-semibold text-bg">2</span>
             <h2 className="text-sm font-semibold text-fg">{copy.strategyStep}</h2>
           </div>
-          <PersonaSelector value={persona} onChange={setPersona} locale={locale} />
-          <GoalSelector value={goal} onChange={setGoal} locale={locale} />
-          <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} />
+          <PersonaSelector value={persona} onChange={setPersona} locale={locale} disabled={isLoading} />
+          <GoalSelector value={goal} onChange={setGoal} locale={locale} disabled={isLoading} />
+          <PlatformSelector value={selectedPlatforms} onChange={setSelectedPlatforms} locale={locale} disabled={isLoading} />
           <KitHistory kits={kits} locale={locale} />
         </div>
 

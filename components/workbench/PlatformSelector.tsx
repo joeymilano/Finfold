@@ -9,6 +9,7 @@ type PlatformSelectorProps = {
   value: PlatformId[];
   onChange: (value: PlatformId[]) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
 const englishPlatformLabels: Record<PlatformId, string> = {
@@ -58,7 +59,7 @@ function joinClasses(...classes: Array<string | false>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export function PlatformSelector({ value, onChange, locale }: PlatformSelectorProps) {
+export function PlatformSelector({ value, onChange, locale, disabled = false }: PlatformSelectorProps) {
   const copy = dashboardCopy[locale];
 
   function togglePlatform(platformId: PlatformId) {
@@ -90,8 +91,9 @@ export function PlatformSelector({ value, onChange, locale }: PlatformSelectorPr
               type="button"
               key={platform.id}
               onClick={() => togglePlatform(platform.id)}
+              disabled={disabled}
               className={joinClasses(
-                "focus-ring group rounded-sm border p-3 text-left transition duration-200",
+                "focus-ring group rounded-sm border p-3 text-left transition duration-200 disabled:cursor-not-allowed disabled:opacity-50",
                 selected
                   ? "border-brand bg-brand text-white shadow-glow-brand"
                   : "border-hairline bg-surface hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2"

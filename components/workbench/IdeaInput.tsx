@@ -7,9 +7,10 @@ type IdeaInputProps = {
   value: string;
   onChange: (value: string) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
-export function IdeaInput({ value, onChange, locale }: IdeaInputProps) {
+export function IdeaInput({ value, onChange, locale, disabled = false }: IdeaInputProps) {
   const copy = dashboardCopy[locale];
 
   return (
@@ -25,7 +26,8 @@ export function IdeaInput({ value, onChange, locale }: IdeaInputProps) {
       <textarea
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="focus-ring min-h-[260px] w-full resize-none rounded-sm border border-hairline bg-surface p-4 text-sm font-medium leading-6 shadow-panel text-fg placeholder:text-fg-muted/60"
+        disabled={disabled}
+        className="focus-ring min-h-[260px] w-full resize-none rounded-sm border border-hairline bg-surface p-4 text-sm font-medium leading-6 shadow-panel text-fg placeholder:text-fg-muted/60 disabled:cursor-not-allowed disabled:opacity-50"
         placeholder={copy.ideaHint}
       />
     </section>

@@ -8,6 +8,7 @@ type PersonaSelectorProps = {
   value: PersonaId;
   onChange: (value: PersonaId) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
 const englishPersonaLabels: Record<PersonaId, string> = {
@@ -18,7 +19,7 @@ const englishPersonaLabels: Record<PersonaId, string> = {
   "global-team": "Small global team"
 };
 
-export function PersonaSelector({ value, onChange, locale }: PersonaSelectorProps) {
+export function PersonaSelector({ value, onChange, locale, disabled = false }: PersonaSelectorProps) {
   const copy = dashboardCopy[locale];
 
   return (
@@ -30,7 +31,8 @@ export function PersonaSelector({ value, onChange, locale }: PersonaSelectorProp
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as PersonaId)}
-        className="focus-ring w-full rounded-sm border border-hairline bg-surface px-3 py-3 text-sm font-black shadow-panel"
+        disabled={disabled}
+        className="focus-ring w-full rounded-sm border border-hairline bg-surface px-3 py-3 text-sm font-black shadow-panel disabled:cursor-not-allowed disabled:opacity-50"
       >
         {personas.map((persona) => (
           <option key={persona.id} value={persona.id}>
