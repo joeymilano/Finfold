@@ -1,136 +1,53 @@
+import { PRICING_PLANS, type PublicPlanKey } from "@/lib/pricing";
+
 export const brand = {
   name: "Finfold",
   chineseName: "一鱼多吃",
-  slogan: "Your AI marketing employee — retainer + performance pay.",
+  slogan: "Your reviewable AI marketing agent for getting the word out.",
   description:
-    "An AI content operations workspace built exclusively for founders and solo teams. Turn one product signal into platform-native growth kits across every channel.",
-  primaryCta: "Hire your AI employee",
-  siteUrl: "https://finfold.pages.dev",
-  pricing: {
-    free: {
-      id: "free" as const,
-      name: "Intern",
-      nameCN: "实习生",
-      price: { usd: "$0", cny: "¥0" },
-      priceLabel: { usd: "Free", cny: "免费" },
-      allowance: "5 kits / month",
-      allowanceCN: "每月 5 份内容包",
-      features: [
-        "7 core platforms",
-        "Preview generation",
-        "Upgrade to copy & export"
-      ],
-      featuresCN: [
-        "7 个核心平台",
-        "内容预览生成",
-        "升级后解锁复制与导出"
-      ],
-      highlighted: false,
-      badge: null
-    },
-    starter: {
-      id: "starter" as const,
-      name: "Junior",
-      nameCN: "初级营销员工",
-      price: { usd: "$4.99", cny: "¥29" },
-      priceLabel: { usd: "$4.99/mo", cny: "¥29/mo" },
-      allowance: "30 kits / month",
-      allowanceCN: "每月 30 份内容包",
-      features: [
-        "All 11 platforms",
-        "Saved kit history",
-        "Markdown export"
-      ],
-      featuresCN: [
-        "全部 11 个平台",
-        "历史内容存档",
-        "Markdown 导出"
-      ],
-      highlighted: false,
-      badge: null
-    },
-    creator: {
-      id: "creator" as const,
-      name: "Senior",
-      nameCN: "资深营销员工",
-      price: { usd: "$9.99", cny: "¥69" },
-      priceLabel: { usd: "$9.99/mo", cny: "¥69/mo" },
-      allowance: "100 kits / month",
-      allowanceCN: "每月 100 份内容包",
-      features: [
-        "All 11 platforms",
-        "Saved kit history",
-        "Markdown export",
-        "Launch playbooks",
-        "Priority support",
-        "30% refund if results disappoint"
-      ],
-      featuresCN: [
-        "全部 11 个平台",
-        "历史内容存档",
-        "Markdown 导出",
-        "发布 Playbook",
-        "优先支持",
-        "效果不理想退款 30%"
-      ],
-      highlighted: true,
-      badge: "Most Popular"
-    },
-    pro: {
-      id: "pro" as const,
-      name: "Lead",
-      nameCN: "营销主管",
-      price: { usd: "$19.99", cny: "¥149" },
-      priceLabel: { usd: "$19.99/mo", cny: "¥149/mo" },
-      allowance: "300 kits / month",
-      allowanceCN: "每月 300 份内容包",
-      features: [
-        "All 11 platforms",
-        "Saved kit history",
-        "Markdown export",
-        "Launch playbooks",
-        "Priority support",
-        "Workspace API access",
-        "30% refund if results disappoint"
-      ],
-      featuresCN: [
-        "全部 11 个平台",
-        "历史内容存档",
-        "Markdown 导出",
-        "发布 Playbook",
-        "优先支持",
-        "Workspace API 接入",
-        "效果不理想退款 30%"
-      ],
-      highlighted: false,
-      badge: null
-    },
-    team: {
-      id: "team" as const,
-      name: "Growth Team",
-      nameCN: "增长团队",
-      price: { usd: "$49", cny: "¥399" },
-      priceLabel: { usd: "$49+/mo", cny: "¥399+/mo" },
-      allowance: "1,000 kits / month",
-      allowanceCN: "每月 1,000 份内容包",
-      features: [
-        "Everything in Lead",
-        "Up to 5 seats",
-        "Shared kit history",
-        "Priority support",
-        "30% refund if results disappoint"
-      ],
-      featuresCN: [
-        "营销主管全部权益",
-        "最多 5 个席位",
-        "团队内容库共享",
-        "优先支持",
-        "效果不理想退款 30%"
-      ],
-      highlighted: false,
-      badge: null
+    "Finfold is a reviewable AI marketing agent for founders and small teams: it audits a website, prepares growth missions, creates platform-native content, and learns from real outcomes.",
+  primaryCta: "Try it free",
+  siteUrl: "https://www.finfold.app",
+  socialImage: {
+    url: "/brand/og-image.png",
+    width: 1200,
+    height: 630,
+    alt: "Finfold — AI marketing agent for small teams"
+  },
+  pricing: PRICING_PLANS,
+  /** 3-day no-questions-asked refund on all paid plans; the top tier adds a
+   * first-month satisfaction guarantee since it's sold on a much higher
+   * trust bar (see plan §5 — replaces the old "30% performance refund"). */
+  refundPolicy: {
+    standard: { en: "3-day no-questions-asked refund.", zh: "3 天无理由退款。" },
+    employee: {
+      en: "3-day no-questions-asked refund, plus a full refund if you're not satisfied within your first month.",
+      zh: "3 天无理由退款；首月内不满意可全额退款。"
+    }
+  },
+  /** Legal / compliance metadata surfaced on the Privacy, Terms and Refund
+   * pages and in the site footer. Payments are processed by Creem, which acts
+   * as the merchant of record for card transactions. */
+  legal: {
+    /** Registered operating entity behind the Finfold product. Update this to
+     * your exact registered business name before going live. */
+    entity: "Finfold",
+    contactEmail: "support@finfold.app",
+    privacyEmail: "support@finfold.app",
+    /** Last time the legal documents were reviewed (ISO date). */
+    effectiveDate: "2026-07-08",
+    /** Third-party payment processor / merchant of record. */
+    paymentProcessor: "Creem",
+    /** Third-party AI providers whose large language models power content
+     * generation. Disclosed on the Privacy page and Terms to satisfy
+     * payment-provider (Creem) review requirements. Generation is
+     * orchestrated through Letta, which routes to OpenAI and Anthropic
+     * models. Update this list if the underlying providers change. */
+    aiProviders: {
+      en: "OpenAI (GPT models), Anthropic (Claude models), orchestrated through Letta",
+      zh: "OpenAI（GPT 系列模型）、Anthropic（Claude 系列模型），通过 Letta 进行编排调用"
     }
   }
 } as const;
 
-export type PricingPlanKey = keyof typeof brand.pricing;
+export type PricingPlanKey = PublicPlanKey;

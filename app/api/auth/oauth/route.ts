@@ -1,7 +1,8 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { getAuthCallbackUrl } from "@/lib/auth-callback-url";
 
 /**
  * POST /api/auth/oauth
@@ -13,6 +14,9 @@ import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
  * Expected body: { provider: "google" | "github" | ... }
  */
 export async function POST(request: Request) {
+  const rateLimited = enforceApiRateLimit(request, { scope: "auth:oauth", limit: 10, windowMs: 15 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -22,6 +26,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     provider?: string;
+    next?: string;
   };
 
   const provider = body.provider;
@@ -41,12 +46,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: provider as "google" | "github" | "azure" | "facebook" | "discord" | "twitter",
     options: {
-      redirectTo: `${appUrl}/auth/callback`,
+      redirectTo: getAuthCallbackUrl(request, undefined, body.next),
     },
   });
 

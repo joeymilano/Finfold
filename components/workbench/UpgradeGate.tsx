@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, LockKeyhole, X, Sparkles } from "lucide-react";
+import { ArrowRight, LockKeyhole, X, Sparkles } from "@/components/ui/icons";
 import type { Locale } from "@/lib/i18n";
 
 type UpgradeGateProps = {
@@ -15,7 +15,7 @@ type UpgradeGateProps = {
 const copy = {
   zh: {
     title: "升级 Starter 后查看完整内容",
-    body: "您已生成并预览了多渠道原生增长资产！升级至 Starter 即可解锁：全平台一键复制、Markdown 一键导出、历史记录保存、自动化排期同步及多渠道转化诊断。",
+    body: "您已生成并预览了各平台内容！升级至 Starter 即可解锁：全平台一键复制、Markdown 一键导出、历史记录保存、自动化排期同步及多渠道转化诊断。",
     login: "注册登录",
     upgrade: "升级查看套餐",
     close: "关闭"

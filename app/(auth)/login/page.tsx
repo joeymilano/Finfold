@@ -1,5 +1,11 @@
-import { AuthForm } from "@/components/app-shell/AuthForm";
+import { AuthSplit } from "@/components/app-shell/AuthSplit";
+import { sanitizeInternalReturnTo } from "@/lib/auth-return";
 
-export default function LoginPage() {
-  return <AuthForm mode="login" />;
+type LoginPageProps = {
+  searchParams: Promise<{ next?: string }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  return <AuthSplit mode="login" returnTo={sanitizeInternalReturnTo(params.next)} />;
 }

@@ -4,8 +4,8 @@ compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
 
 [vars]
-NEXT_PUBLIC_SUPABASE_URL = "https://mjkaqlzryhxcubipftcf.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_YF-GMCp0x7XZjYWwcq3ykQ_RcU_nOyH"
+NEXT_PUBLIC_SUPABASE_URL = ""  # set your own Supabase project URL at deploy time
+NEXT_PUBLIC_SUPABASE_ANON_KEY = ""  # publishable key of your own Supabase project
 NEXT_PUBLIC_APP_URL = "https://finfold.pages.dev"
 # AI generation routes through Letta agents (per-user + a shared trial/fallback
 # agent). Letta has NO agent-less /chat/completions endpoint, so we do NOT point

@@ -2,98 +2,184 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bot,
+  Activity,
   CreditCard,
   FileStack,
-  Gauge,
+  Gift,
   MessageSquare,
-  MoreHorizontal,
+  Settings,
   ShieldCheck,
+  Target,
+  User,
   WandSparkles,
   X,
-} from "lucide-react";
+} from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/hooks/useLocale";
 
-// 4 primary tabs stay on the bar; the rest live behind "更多 / More".
+// 移动端把 Agent 作为默认工作区，并保留任务、创作和我的四个高频入口。
+// 「我的」是抽屉，收纳所有次级目的地，避免新用户在底部被更多入口淹没、
+// 且品牌记忆、品牌规则等配置不再与 Agent 平铺成同级能力。
 const primaryTabs = [
-  { href: "/dashboard", zh: "仪表", en: "Home", icon: Gauge },
-  { href: "/workbench", zh: "创作", en: "Create", icon: WandSparkles },
-  { href: "/packages", zh: "内容", en: "Saved", icon: FileStack },
-  { href: "/agents", zh: "助手", en: "Agent", icon: Bot },
+  { href: "/dashboard", zh: "Agent", en: "Agent", icon: Bot },
+  { href: "/operations", zh: "任务", en: "Missions", icon: Target },
+  { href: "/workbench", zh: "创作台", en: "Studio", icon: WandSparkles },
 ];
 
-const moreTabs = [
-  { href: "/brand-memory", zh: "品牌记忆", en: "Brand Memory", icon: MessageSquare },
-  { href: "/guardrails", zh: "品牌规则", en: "Brand Rules", icon: ShieldCheck },
-  { href: "/billing", zh: "订阅", en: "Billing", icon: CreditCard },
+type MineItem = { href: string; zh: string; en: string; subZh: string; subEn: string; icon: typeof Bot };
+type MineGroup = { zh: string; en: string; items: MineItem[] };
+
+const mineGroups: MineGroup[] = [
+  {
+    zh: "结果", en: "Results",
+    items: [{ href: "/packages", zh: "结果与资产", en: "Results & Assets", subZh: "任务产出、发布状态与复盘", subEn: "Mission outputs and reviews", icon: FileStack }],
+  },
+  {
+    zh: "高级工具", en: "Advanced tools",
+    items: [
+      { href: "/operations/xiaohongshu", zh: "小红书陪跑", en: "XHS Coaching", subZh: "诊断与 14 天实验", subEn: "Diagnosis and 14-day loop", icon: Activity },
+      { href: "/brand-memory", zh: "品牌记忆", en: "Identity Memory", subZh: "身份、语气、受众", subEn: "Identity, voice, audience", icon: MessageSquare },
+      { href: "/guardrails", zh: "品牌规则", en: "Brand Rules", subZh: "禁用词、不能说的话", subEn: "Banned words & rules", icon: ShieldCheck },
+    ],
+  },
+  {
+    zh: "账户", en: "Account",
+    items: [
+      { href: "/billing", zh: "订阅", en: "Billing", subZh: "套餐与额度", subEn: "Plan & usage", icon: CreditCard },
+      { href: "/invite", zh: "邀请好友", en: "Invite friends", subZh: "双方各得 100 创作点数", subEn: "Earn 100 Credits each", icon: Gift },
+      { href: "/settings", zh: "设置", en: "Settings", subZh: "语言、头像、账号", subEn: "Language, avatar, account", icon: Settings },
+    ],
+  },
 ];
+
+const mineHrefs = mineGroups.flatMap((g) => g.items.map((i) => i.href));
 
 export function MobileTabBar() {
   const pathname = usePathname();
   const locale = useLocale();
-  const [moreOpen, setMoreOpen] = useState(false);
+  const [mineOpen, setMineOpen] = useState(false);
+  const mineTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const mineDialogRef = useRef<HTMLDivElement | null>(null);
+  const mineCloseRef = useRef<HTMLButtonElement | null>(null);
 
   const isActive = (href: string) =>
     pathname === href || (href !== "/workbench" && pathname?.startsWith(href));
 
-  // Highlight the "More" button when one of its routes is active.
-  const moreActive = moreTabs.some((tab) => isActive(tab.href));
+  // 当某个「我的」子路由处于激活时，高亮「我的」按钮。
+  const mineActive = mineHrefs.some((h) => isActive(h));
 
-  // Close the sheet whenever the route changes.
+  // 路由变化时关闭抽屉。
   useEffect(() => {
-    setMoreOpen(false);
+    setMineOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    if (!mineOpen) return;
+    const trigger = mineTriggerRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    mineCloseRef.current?.focus();
+
+    function handleDialogKeys(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMineOpen(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = Array.from(mineDialogRef.current?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ) ?? []);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleDialogKeys);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleDialogKeys);
+      trigger?.focus();
+    };
+  }, [mineOpen]);
 
   return (
     <>
-      {/* Slide-up "More" sheet */}
-      {moreOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+      {/* 「我的」分组抽屉 */}
+      {mineOpen ? (
+        <div className="fixed inset-0 z-40 lg:hidden">
           <button
             type="button"
             aria-label={locale === "en" ? "Close menu" : "关闭菜单"}
-            onClick={() => setMoreOpen(false)}
+            onClick={() => setMineOpen(false)}
             className="absolute inset-0 bg-bg/60 backdrop-blur-sm"
           />
-          <div className="absolute inset-x-0 bottom-16 rounded-t-2xl border-t border-hairline bg-surface px-3 pb-4 pt-3 shadow-raised">
+          <div
+            ref={mineDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={locale === "en" ? "Mine navigation" : "我的导航"}
+            className="absolute inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] max-h-[70vh] overflow-y-auto rounded-t-2xl border-t border-hairline bg-surface px-3 pb-4 pt-3 shadow-raised"
+          >
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-xs font-bold uppercase tracking-wider text-fg-muted">
-                {locale === "en" ? "More" : "更多"}
+                {locale === "en" ? "Mine" : "我的"}
               </span>
               <button
+                ref={mineCloseRef}
                 type="button"
-                onClick={() => setMoreOpen(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2"
+                onClick={() => setMineOpen(false)}
+                aria-label={locale === "en" ? "Close mine navigation" : "关闭我的导航"}
+                className="focus-ring flex h-7 w-7 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-2"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="grid gap-1">
-              {moreTabs.map(({ href, zh, en, icon: Icon }) => {
-                const active = isActive(href);
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition-colors",
-                      active ? "bg-brand/15 text-brand" : "text-fg hover:bg-surface-2"
-                    )}
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {locale === "en" ? en : zh}
-                  </Link>
-                );
-              })}
+            <div className="grid gap-4">
+              {mineGroups.map((group) => (
+                <div key={group.en} className="grid gap-1">
+                  <p className="px-1 text-[10px] font-bold uppercase tracking-wider text-fg-muted/70">
+                    {locale === "en" ? group.en : group.zh}
+                  </p>
+                  {group.items.map(({ href, zh, en, subZh, subEn, icon: Icon }) => {
+                    const active = isActive(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className={cn(
+                          "flex items-center gap-3 rounded-xl px-3 py-3 transition-colors",
+                          active ? "bg-action/[0.11] text-action-strong dark:text-action" : "text-fg hover:bg-surface-2"
+                        )}
+                      >
+                        <Icon className="h-5 w-5 shrink-0" />
+                        <span className="min-w-0 flex-1 leading-tight">
+                          <span className="block text-sm font-semibold">{locale === "en" ? en : zh}</span>
+                          <span className={cn("block text-[11px] font-medium", active ? "text-action-strong/80 dark:text-action/80" : "text-fg-muted")}>
+                            {locale === "en" ? subEn : subZh}
+                          </span>
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
       ) : null}
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch gap-0.5 border-t border-hairline bg-surface/95 px-1.5 backdrop-blur-xl lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch gap-0.5 border-t border-hairline bg-surface/95 px-1.5 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl lg:hidden">
         {primaryTabs.map(({ href, zh, en, icon: Icon }) => {
           const active = isActive(href);
           const label = locale === "en" ? en : zh;
@@ -103,12 +189,12 @@ export function MobileTabBar() {
               href={href}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
-                active ? "text-brand" : "text-fg-muted"
+                active ? "text-action-strong dark:text-action" : "text-fg-muted"
               )}
             >
               <span className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-xl transition-all",
-                active ? "bg-brand/15 text-brand" : "text-fg-muted"
+                active ? "bg-action/[0.11] text-action-strong dark:text-action" : "text-fg-muted"
               )}>
                 <Icon className="h-[18px] w-[18px]" />
               </span>
@@ -117,23 +203,25 @@ export function MobileTabBar() {
           );
         })}
 
-        {/* More button */}
+        {/* 「我的」按钮（抽屉触发器） */}
         <button
+          ref={mineTriggerRef}
           type="button"
-          onClick={() => setMoreOpen((open) => !open)}
-          aria-expanded={moreOpen}
+          onClick={() => setMineOpen((open) => !open)}
+          aria-expanded={mineOpen}
+          aria-haspopup="dialog"
           className={cn(
             "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[10px] font-semibold transition-colors",
-            moreActive || moreOpen ? "text-brand" : "text-fg-muted"
+            mineActive || mineOpen ? "text-action-strong dark:text-action" : "text-fg-muted"
           )}
         >
           <span className={cn(
             "flex h-7 w-7 items-center justify-center rounded-xl transition-all",
-            moreActive || moreOpen ? "bg-brand/15 text-brand" : "text-fg-muted"
+            mineActive || mineOpen ? "bg-action/[0.11] text-action-strong dark:text-action" : "text-fg-muted"
           )}>
-            <MoreHorizontal className="h-[18px] w-[18px]" />
+            <User className="h-[18px] w-[18px]" />
           </span>
-          {locale === "en" ? "More" : "更多"}
+          {locale === "en" ? "Mine" : "我的"}
         </button>
       </nav>
     </>

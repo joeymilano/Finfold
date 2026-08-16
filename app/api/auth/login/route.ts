@@ -1,7 +1,8 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { REFERRAL_COOKIE } from "@/lib/referrals";
 
 /**
  * POST /api/auth/login
@@ -13,6 +14,9 @@ import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
  * Expected body: { email: string, password: string }
  */
 export async function POST(request: Request) {
+  const rateLimited = enforceApiRateLimit(request, { scope: "auth:login", limit: 10, windowMs: 15 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -74,7 +78,7 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({
+  const response = NextResponse.json({
     user: data.user
       ? {
           id: data.user.id,
@@ -82,4 +86,6 @@ export async function POST(request: Request) {
         }
       : null,
   });
+  response.cookies.delete(REFERRAL_COOKIE);
+  return response;
 }

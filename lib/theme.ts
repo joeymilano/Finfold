@@ -1,10 +1,15 @@
+import type { Locale } from "@/lib/i18n";
+
 export type Theme = "light" | "dark";
 
 export const THEME_STORAGE_KEY = "finfold-theme";
 export const DEFAULT_THEME: Theme = "dark";
 
 // ── Locale (global, localStorage-backed) ────────────────────
-export type Locale = "zh" | "en";
+// Locale itself is defined in lib/i18n.ts (the dictionary's home); this
+// module only re-exports it so existing `from "@/lib/theme"` imports keep
+// working without every call site needing to change its import path.
+export type { Locale };
 export const LOCALE_STORAGE_KEY = "finfold-locale";
 export const DEFAULT_LOCALE: Locale = "zh";
 
@@ -38,8 +43,11 @@ export function applyLocale(locale: Locale): void {
 /**
  * Inline script injected in <head> before hydration so the saved theme is
  * applied to <html data-theme> synchronously — prevents a light→dark flash.
+ * The landing page ("/" and "/en") is dark-only by design, so the stored
+ * preference is ignored there; LandingPage also enforces this after
+ * hydration and restores the saved theme on the way back into the app.
  */
-export const THEME_INIT_SCRIPT = `(function(){try{var t=localStorage.getItem('${THEME_STORAGE_KEY}');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
+export const THEME_INIT_SCRIPT = `(function(){try{var p=window.location.pathname;var landing=p==='/'||p==='/en'||p==='/en/';var t=landing?'dark':localStorage.getItem('${THEME_STORAGE_KEY}');document.documentElement.setAttribute('data-theme',t==='light'?'light':'dark');}catch(e){document.documentElement.setAttribute('data-theme','dark');}})();`;
 
 export function getStoredTheme(): Theme {
   if (typeof window === "undefined") {

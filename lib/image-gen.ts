@@ -1,20 +1,30 @@
 /**
  * Image Generation Client — server-side only.
  *
- * Wraps the Agnes AI image generation API (OpenAI-compatible).
- * Generates cover images for content kit outputs.
+ * Generates cover images for content kit outputs through an ordered
+ * provider chain (see lib/image-providers.ts):
+ *  1. Cloudflare Workers AI (@cf/black-forest-labs/flux-2-klein-4b), while
+ *     today's free Neuron budget (lib/workers-ai-budget.ts) allows it.
+ *  2. Agnes AI (OpenAI-compatible /v1/images/generations) — the original,
+ *     sole provider, now the fallback.
  *
- * API docs: https://apihub.agnes-ai.com
- * Model: agnes-image-2.1-flash
- *
- * Uses the standard fetch API for Edge Runtime compatibility
- * (required by Cloudflare Pages).
+ * Uses the standard fetch API for Workers compatibility and a small bundle.
  */
 
-// Lazy env reads for edge-runtime compatibility
-const imageApiBase = () => process.env.IMAGE_API_BASE ?? "https://apihub.agnes-ai.com";
-const imageApiKey = () => process.env.IMAGE_API_KEY ?? "";
-const imageModel  = () => process.env.IMAGE_MODEL  ?? "agnes-image-2.1-flash";
+import { LLMRequestError } from "@/lib/llm-providers";
+import {
+  resolveImageProviders,
+  workersAiSupportsSize,
+  WORKERS_AI_MAX_REFERENCE_IMAGE_DIMENSION,
+  type ImageProvider
+} from "@/lib/image-providers";
+import { estimateImageNeurons, reserveNeurons, releaseNeurons } from "@/lib/workers-ai-budget";
+import { logInfo, logWarn, type TelemetryContext } from "@/lib/observability";
+import { inspectMediaUploadBytes } from "@/lib/media-upload-policy";
+import { bytesToArrayBuffer, IMAGE_CONTENT_TYPES, readBytesWithLimit, safeExternalFetch } from "@/lib/safe-url";
+
+const REQUEST_TIMEOUT_MS = 60_000;
+const MAX_REFERENCE_IMAGE_BYTES = 15 * 1024 * 1024;
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -26,58 +36,312 @@ export interface ImageGenerationResult {
 // ─── Config Check ────────────────────────────────────────────────────
 
 export function isImageGenConfigured(): boolean {
-  return Boolean(imageApiKey());
+  return resolveImageProviders().length > 0;
 }
 
 // ─── Core Generation ─────────────────────────────────────────────────
 
 /**
- * Generate an image from a text prompt using the Agnes AI API.
+ * Generate an image from a text prompt, trying each configured provider in
+ * order (Workers AI first, Agnes AI as fallback).
  *
- * @param prompt  The image generation prompt
- * @param size    Image dimensions (default 1024x1024)
- * @returns       The generated image URL
+ * @param prompt             The image generation prompt
+ * @param size               Image dimensions (default 1024x1024)
+ * @param referenceImageUrl  Optional public URL of an uploaded product image.
+ *                           When provided (and reference support isn't
+ *                           disabled via IMAGE_REFERENCE=false), it's passed
+ *                           as an image-to-image reference so the cover
+ *                           inherits the real product's look. Workers AI
+ *                           (flux-2-klein-4b) accepts a reference as
+ *                           input_image_0 ONLY when it decodes to under
+ *                           512x512 (Cloudflare's documented limit) —
+ *                           anything larger, unreachable, or unrecognized
+ *                           silently makes Workers AI ineligible for this
+ *                           request, falling back to Agnes, which has no
+ *                           such size limit.
+ * @param telemetry          Optional context for ai_provider_attempt logging.
+ * @returns       Either a hosted URL (Agnes) or raw bytes (Workers AI) —
+ *                see ImageGenerationOutcome.
  */
+export type ImageGenerationOutcome =
+  | { kind: "url"; url: string; revisedPrompt: string | null }
+  | { kind: "bytes"; bytes: Uint8Array; contentType: string; revisedPrompt: string | null };
+
 export async function generateImage(
   prompt: string,
-  size: string = "1024x1024"
-): Promise<ImageGenerationResult> {
-  const url = `${imageApiBase()}/v1/images/generations`;
-  const apiKey = imageApiKey();
-  const model = imageModel();
+  size: string = "1024x1024",
+  referenceImageUrl?: string,
+  telemetry?: TelemetryContext
+): Promise<ImageGenerationOutcome> {
+  const allProviders = resolveImageProviders();
+  if (allProviders.length === 0) {
+    throw new Error("Image generation is not configured.");
+  }
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      prompt,
-      n: 1,
-      size,
-    }),
+  const useReference = Boolean(referenceImageUrl) && process.env.IMAGE_REFERENCE !== "false";
+  // flux-2-klein-4b supports reference images (input_image_0..3), but only
+  // under 512x512 — fetch and validate once up front so every provider in
+  // the chain sees the same decision. A too-large, unreachable, or
+  // unrecognized reference simply makes Workers AI ineligible for THIS
+  // request (never throws): the request still proceeds, either without a
+  // reference on Workers AI or with the full-size reference on Agnes
+  // (which has no such limit).
+  const workersAiReference = useReference
+    ? await prepareWorkersAiReferenceImage(referenceImageUrl!)
+    : null;
+
+  const providers = allProviders.filter((provider) => {
+    if (provider.name !== "workers-ai") return true;
+    if (!useReference) return workersAiSupportsSize();
+    return workersAiReference !== null;
   });
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Image API ${res.status}: ${body || res.statusText}`);
+  if (providers.length === 0) {
+    throw new Error("Image generation is not configured for this request.");
   }
 
-  const data = (await res.json()) as {
-    data?: Array<{ url?: string; b64_json?: string | null; revised_prompt?: string | null }>;
-  };
-
-  const image = data.data?.[0];
-  if (!image?.url) {
-    throw new Error("Image API returned no image URL.");
+  let lastError: unknown;
+  for (const provider of providers) {
+    const startedAt = Date.now();
+    try {
+      const outcome = await runProvider(
+        provider,
+        prompt,
+        size,
+        useReference ? referenceImageUrl : undefined,
+        workersAiReference
+      );
+      logInfo("image_provider_attempt", telemetry, {
+        provider: provider.name,
+        outcome: "succeeded",
+        latency_ms: Date.now() - startedAt
+      });
+      return outcome;
+    } catch (error) {
+      lastError = error;
+      const status = error instanceof LLMRequestError ? error.status : null;
+      const skipped = error instanceof NeuronBudgetExhaustedError;
+      const fields = {
+        provider: provider.name,
+        outcome: skipped ? "skipped" : "failed",
+        status,
+        latency_ms: Date.now() - startedAt,
+        reason: skipped ? "neuron_budget_exhausted" : undefined
+      };
+      if (skipped) {
+        logInfo("image_provider_skipped", telemetry, fields);
+      } else {
+        logWarn("image_provider_attempt", telemetry, fields);
+        console.warn(
+          `[ImageGen] provider "${provider.name}" failed, trying next provider:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
   }
 
-  return {
-    url: image.url,
-    revisedPrompt: image.revised_prompt ?? null,
-  };
+  throw lastError instanceof Error ? lastError : new Error("All configured image providers failed.");
+}
+
+class NeuronBudgetExhaustedError extends Error {
+  constructor() {
+    super("Workers AI daily Neuron budget exhausted.");
+  }
+}
+
+type WorkersAiReferenceImage = { bytes: Uint8Array; contentType: string };
+
+/**
+ * Fetches a reference image URL and validates it fits flux-2-klein-4b's
+ * input_image_N contract (under 512x512, recognized format). Returns null
+ * on ANY failure — network error, over-size, unrecognized bytes — so the
+ * caller can silently treat Workers AI as ineligible for this request and
+ * fall back to Agnes (which has no such size limit) rather than fail the
+ * whole generation.
+ */
+async function prepareWorkersAiReferenceImage(url: string): Promise<WorkersAiReferenceImage | null> {
+  try {
+    const response = await safeExternalFetch(
+      url,
+      { headers: { Accept: "image/webp,image/png,image/jpeg" } },
+      {
+        allowedContentTypes: IMAGE_CONTENT_TYPES,
+        timeoutMs: 15_000,
+        auditPurpose: "workers_ai_reference_image"
+      }
+    );
+    if (!response.ok) return null;
+
+    const bytes = await readBytesWithLimit(response, MAX_REFERENCE_IMAGE_BYTES);
+    const inspection = inspectMediaUploadBytes(bytes);
+    if (!inspection.ok) return null;
+    if (
+      inspection.width > WORKERS_AI_MAX_REFERENCE_IMAGE_DIMENSION ||
+      inspection.height > WORKERS_AI_MAX_REFERENCE_IMAGE_DIMENSION
+    ) {
+      return null;
+    }
+
+    return { bytes, contentType: inspection.contentType };
+  } catch {
+    return null;
+  }
+}
+
+async function runProvider(
+  provider: ImageProvider,
+  prompt: string,
+  size: string,
+  referenceImageUrl: string | undefined,
+  workersAiReference: WorkersAiReferenceImage | null
+): Promise<ImageGenerationOutcome> {
+  if (provider.name === "workers-ai") {
+    return runWorkersAi(provider, prompt, size, workersAiReference);
+  }
+  return runAgnes(provider, prompt, size, referenceImageUrl);
+}
+
+async function runWorkersAi(
+  provider: ImageProvider & { name: "workers-ai" },
+  prompt: string,
+  size: string,
+  reference: WorkersAiReferenceImage | null
+): Promise<ImageGenerationOutcome> {
+  const estimatedNeurons = estimateImageNeurons(size, reference ? 1 : 0);
+  const reservation = await reserveNeurons(estimatedNeurons);
+  if (!reservation.allowed) {
+    throw new NeuronBudgetExhaustedError();
+  }
+
+  let succeeded = false;
+  try {
+    // flux-2-klein-4b's REST input is a required `multipart` object (NOT a
+    // plain JSON body — confirmed against Cloudflare's own changelog
+    // example, since the model page's schema viewer only shows the
+    // collapsed { body, contentType } shape without documenting it inline).
+    // Passing a FormData body directly to fetch lets it set the
+    // boundary-bearing multipart Content-Type header itself.
+    const [width, height] = size.split("x");
+    const form = new FormData();
+    form.append("prompt", prompt);
+    form.append("width", width);
+    form.append("height", height);
+    if (reference) {
+      // The model requires this exact field name for a single reference
+      // image (see the Cloudflare changelog's multi-reference example,
+      // which uses input_image_0..input_image_3 for up to 4 images).
+      form.append(
+        "input_image_0",
+        new Blob([bytesToArrayBuffer(reference.bytes)], { type: reference.contentType })
+      );
+    }
+
+    const url = `https://api.cloudflare.com/client/v4/accounts/${provider.accountId}/ai/run/${provider.model}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${provider.apiToken}`
+      },
+      body: form,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+
+    if (!response.ok) {
+      await response.text().catch(() => "");
+      throw new LLMRequestError(response.status, `Workers AI image request failed: ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      result?: { image?: string };
+      success?: boolean;
+    };
+    const base64Image = data.result?.image;
+    if (!data.success || !base64Image) {
+      throw new Error("Workers AI returned no image data.");
+    }
+
+    succeeded = true;
+    return {
+      kind: "bytes",
+      bytes: base64ToBytes(base64Image),
+      contentType: "image/jpeg",
+      revisedPrompt: null
+    };
+  } finally {
+    if (!succeeded) {
+      await releaseNeurons(estimatedNeurons);
+    }
+  }
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+async function runAgnes(
+  provider: ImageProvider & { name: "agnes" },
+  prompt: string,
+  size: string,
+  referenceImageUrl: string | undefined
+): Promise<ImageGenerationOutcome> {
+  const url = `${provider.apiBase}/v1/images/generations`;
+
+  async function post(withReference: boolean): Promise<ImageGenerationOutcome> {
+    const body: Record<string, unknown> = { model: provider.model, prompt, n: 1, size };
+    if (withReference && referenceImageUrl) {
+      body.image = referenceImageUrl;
+    }
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${provider.apiKey}`
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      throw new LLMRequestError(res.status, `Image API ${res.status}: ${errBody || res.statusText}`);
+    }
+
+    const data = (await res.json()) as {
+      data?: Array<{ url?: string; b64_json?: string | null; revised_prompt?: string | null }>;
+    };
+
+    const image = data.data?.[0];
+    if (!image?.url) {
+      throw new Error("Image API returned no image URL.");
+    }
+
+    return {
+      kind: "url",
+      url: image.url,
+      revisedPrompt: image.revised_prompt ?? null
+    };
+  }
+
+  if (!referenceImageUrl) {
+    return post(false);
+  }
+
+  try {
+    return await post(true);
+  } catch (error) {
+    // The endpoint may not accept the reference param — degrade to plain
+    // text-to-image (still visually guided by the vision-informed prompt).
+    console.warn(
+      "[ImageGen] Reference-image request failed, retrying text-only:",
+      error instanceof Error ? error.message : String(error)
+    );
+    return post(false);
+  }
 }
 
 /**
@@ -102,9 +366,12 @@ export function buildImagePrompt(params: {
   const platformStyle: Record<string, string> = {
     wechat: "professional editorial magazine cover, sophisticated layout, Chinese text overlay style",
     xiaohongshu: "lifestyle aesthetic, soft pastel tones, clean minimal flat lay, trendy Gen-Z visual style",
+    zhihu: "knowledge-led editorial illustration, credible explanatory visual, clean blue accents, thoughtful Chinese long-form aesthetic",
     moments: "casual authentic, warm tones, personal story vibe, smartphone photography feel",
     x: "bold minimalist, high contrast, striking single visual, modern tech aesthetic",
     linkedin: "corporate professional, clean data visualization style, business insight visual",
+    instagram: "lifestyle visual storytelling, vibrant aspirational aesthetic, influencer-grade photography, bold saturated color, social media trend visual",
+    facebook: "community social visual, friendly approachable, clear headline-driven composition, warm authentic social sharing aesthetic",
     reddit: "community-driven, meme-aware, authentic discussion visual, tech-savvy aesthetic",
     "product-hunt": "startup launch energy, product showcase, clean tech aesthetic, innovation visual",
     threads: "conversational, authentic, warm community feel, social discussion visual",
@@ -119,68 +386,21 @@ export function buildImagePrompt(params: {
 }
 
 /**
- * Generate cover images for multiple platform outputs in parallel.
- * Returns the outputs with imageUrl and imagePrompt fields populated.
+ * Converts any model-authored image prompt into a background-only visual brief.
+ * All readable copy is rendered later by CoverCanvas, so the image model never
+ * gets a chance to misspell a Chinese headline or invent fake UI labels.
  */
-export async function generateImagesForOutputs(
-  outputs: Array<{
-    platform: string;
-    title: string;
-    body: string;
-    imageUrl?: string;
-    imagePrompt?: string;
-  }>,
-  ideaText: string,
-  locale: "zh" | "en"
-): Promise<Array<{ platform: string; title: string; body: string; imageUrl: string; imagePrompt: string }>> {
-  if (!isImageGenConfigured()) {
-    // Image generation not configured — return outputs without images
-    return outputs.map((o) => ({
-      ...o,
-      imageUrl: o.imageUrl ?? "",
-      imagePrompt: o.imagePrompt ?? "",
-    }));
-  }
+export function buildTextFreeVisualPrompt(prompt: string, platform: string): string {
+  const cleanPrompt = prompt.trim().replace(/\s+/g, " ");
 
-  // Generate images in parallel (with concurrency limit of 3)
-  const results = await Promise.allSettled(
-    outputs.map(async (output) => {
-      const prompt = buildImagePrompt({
-        platform: output.platform,
-        title: output.title,
-        body: output.body,
-        ideaText,
-        locale,
-      });
-
-      try {
-        const result = await generateImage(prompt);
-        return {
-          ...output,
-          imageUrl: result.url,
-          imagePrompt: prompt,
-        };
-      } catch (error) {
-        console.warn(`[ImageGen] Failed for ${output.platform}:`, error instanceof Error ? error.message : String(error));
-        return {
-          ...output,
-          imageUrl: output.imageUrl ?? "",
-          imagePrompt: prompt,
-        };
-      }
-    })
-  );
-
-  return results.map((r, i) => {
-    if (r.status === "fulfilled") {
-      return r.value;
-    }
-    // On rejection, return without image
-    const output = outputs[i];
-    return {
-      ...output,
-      imageUrl: output.imageUrl ?? "",
-      imagePrompt: output.imagePrompt ?? "",
-    };
-  });
+  return [
+    `Create a premium background visual plate for a ${platform} social cover.`,
+    cleanPrompt,
+    "BACKGROUND ART ONLY: absolutely no text, letters, words, typography, captions, numbers, logos, watermarks, signatures, UI labels, signs, posters, book covers, packaging copy, or readable screens.",
+    "Leave deliberate negative space for a separately typeset headline and subtitle. Use one clear focal subject, editorial lighting, strong depth, and a composition that remains legible under a dark gradient overlay.",
+    "Do not draw a finished poster or add any graphic headline. Finfold will typeset every visible word after image generation."
+  ].join(" ");
 }
+
+// Content generation intentionally does not call the image model. Cover Studio
+// invokes /api/image/generate only after an explicit user action.

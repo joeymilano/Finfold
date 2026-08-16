@@ -1,299 +1,143 @@
-# Finfold
+# Finfold — Your First AI Marketing Employee
 
-[中文说明](./README.zh-CN.md)
+> **GOAI 世界人工智能开源大赛 · 无界应用 Boundless Agents 赛道参赛作品**
+>
+> One product signal in → platform-native content out → real performance back → smarter next round.
+>
+> 一个产品信号进入 → 生成多平台原生内容 → 真实表现回流 → 驱动下一轮更聪明的生成。
 
-Finfold is an AI content workspace for founders, indie builders, and lean growth teams that need to turn one product update into platform-native marketing assets.
+[![Live Demo](https://img.shields.io/badge/Live_Demo-finfold.app-8fce00)](https://www.finfold.app)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
-Instead of asking users to manually rewrite the same launch note for every channel, Finfold combines product context, brand memory, channel rules, and an AI agent workflow so a small team can move from "what happened in the product" to "what should we publish next" faster.
+**中文说明见下方 / Chinese below · English first**
 
-## Current Product Scope
+---
 
-Finfold is focused on the solo or small-team creation loop:
+## English
 
-1. Understand the current growth context from the dashboard.
-2. Save brand memory and brand rules once.
-3. Generate drafts in the Workbench.
-4. Ask the AI Agent what to create next.
-5. Review saved content history in the content library.
-6. Manage subscription and usage from Billing.
+### The Problem
 
-Team approval, editorial scheduling, and multi-person review workflows are intentionally not part of the primary surface right now. They can be added later, but the current experience keeps the first user journey lightweight.
+Solo founders and lean teams ship product updates constantly — but turning *one update* into platform-native posts for RED (小红书), X, LinkedIn, Reddit, Instagram and more means rewriting the same story again and again, with no feedback loop from what actually performed.
 
-## Core Features
+Generic chatbots generate *a* post. They don't remember your brand, don't follow each platform's native format, don't track what happened after publishing, and never learn from it.
 
-### Dashboard
+### What Finfold Does
 
-The dashboard highlights the few signals a cross-border marketing user cares about most:
+Finfold is an AI content workspace that closes the full growth loop for one-person and small growth teams:
 
-- Which channels are growing.
-- Which channels need more content.
-- What should be created next.
-- Where brand memory or the AI Agent can help.
-
-### Workbench
-
-The Workbench is the main creation surface. Users enter a product update, select a goal and target platforms, optionally attach media context, and generate channel-specific drafts.
-
-Generated outputs include:
-
-- Platform-specific title and body copy.
-- CTA suggestions.
-- Strategy notes.
-- Brand and quality scoring.
-- Editable draft states.
-
-### Brand Memory
-
-Brand Memory stores the context that makes AI output feel specific to the user:
-
-- Brand or product name.
-- Product description.
-- Target audience.
-- Tone keywords.
-- Approved examples.
-- Banned phrases.
-- Competitor and positioning notes.
-
-This is the core product advantage: the platform becomes more useful as users save more of their own brand context.
-
-### Brand Rules
-
-Brand Rules add a stricter layer for quality control:
-
-- Prohibited phrases.
-- Voice and CTA constraints.
-- Channel-specific guidance.
-- Safety and moderation hints.
-
-These rules are injected into generation and scoring so output stays closer to the user's real brand.
-
-### AI Agent
-
-Finfold includes a conversational AI Assistant backed by Letta. The Agent can help users decide:
-
-- Which platform to create for next.
-- How to reuse Brand Memory.
-- What content gaps matter most.
-- How to turn a product note into a creation brief.
-
-Letta manages the agent memory and model orchestration. Finfold stores each user's Letta agent mapping and routes chat or structured generation requests through the backend.
-
-### Content Library
-
-The content library is intentionally simple. It shows saved content history and keeps generated kits easy to find without adding team-review concepts too early.
-
-### Billing
-
-Billing supports paid plans, usage limits, and subscription state. Creem is used for checkout and webhook handling.
-
-## Architecture
-
-Finfold is a Next.js application designed for Cloudflare Pages.
-
-```text
-User Interface
-  Next.js App Router + React + Tailwind
-
-Backend Routes
-  Next.js route handlers running on the Edge runtime
-
-Data Layer
-  Supabase Auth, Postgres, Row Level Security, Storage-ready user profiles
-
-AI Layer
-  Letta user agents for memory and model orchestration
-  Optional OpenAI-compatible fallback for local or backup generation
-
-Payments
-  Creem checkout, subscription webhooks, plan limits, entitlement checks
-
-Deployment
-  Cloudflare Pages via @cloudflare/next-on-pages and Wrangler
+```
+product signal ──▶ agent workflow ──▶ 13 platform-native drafts
+      ▲                                        │
+      │                                        ▼
+private rules ◀── performance ◀── publish & track
 ```
 
-## Main Routes
+1. **Workbench** — enter one product update; get platform-native titles, body copy, CTAs and strategy notes for every selected channel, with brand & quality scoring.
+2. **Brand Memory** — brand positioning, audience, tone keywords, approved examples and banned phrases make output *yours*, and it compounds with use.
+3. **AI Agent** — a conversational agent (backed by [Letta](https://letta.com)) that can decide what to create next, reuse brand context, and call product tools.
+4. **Performance Loop** — published content reports back; explicit user feedback and edit diffs feed the next generation round as private rules.
 
-| Route | Purpose |
+### Agent Architecture (task loop)
+
+| Stage | How it works |
 | --- | --- |
-| `/dashboard` | Growth dashboard and next-action overview |
-| `/workbench` | Main content creation workspace |
-| `/packages` | Saved content history |
-| `/brand-memory` | Brand memory setup and persistence |
-| `/guardrails` | Brand rules and prohibited wording |
-| `/agents` | Letta-backed AI Assistant chat |
-| `/billing` | Subscription plans, usage, and checkout |
-| `/settings` | Account, language, avatar, and preferences |
+| Task understanding | A product update / growth goal is parsed into a creation brief |
+| Orchestration | Agent workflow maps the brief to per-platform generation tasks |
+| Knowledge augmentation | Brand Memory + Brand Rules are injected as grounding context |
+| Tool calling | Generation, image, and content-iteration tools behind typed API routes |
+| Result delivery | Editable drafts, quality scoring, export & publish-status tracking |
+| Learning | User edits, ratings and (optional) performance data refine the next round — per-user, private |
 
-## API Surface
+### Tech Stack
 
-| API route | Purpose |
-| --- | --- |
-| `/api/generate` | Authenticated content kit generation with quota checks |
-| `/api/trial/generate` | Trial generation flow |
-| `/api/kits` | Saved kit retrieval |
-| `/api/brand-brain` | Brand Memory load and save |
-| `/api/letta/agent` | Get, create, or reset the user's Letta agent |
-| `/api/letta/chat` | Chat with the user's Letta agent |
-| `/api/checkout` | Start Creem checkout |
-| `/api/webhooks/creem` | Process Creem subscription lifecycle events |
-| `/api/entitlements/check` | Read current plan and usage entitlement |
-| `/api/settings/locale` | Persist language preference |
+- **Framework**: Next.js (App Router) + TypeScript + Tailwind CSS
+- **Agent / memory**: Letta (agent memory & orchestration)
+- **Backend / DB / Auth**: Supabase (Postgres, RLS, storage), deployed on Cloudflare (OpenNext)
+- **Payments** (live product only): Creem checkout & webhooks
+- **Models**: commercial LLM APIs via a provider-agnostic layer — see *Open-source boundary* below
 
-## Data Model
+### Open-Source Boundary
 
-The Supabase schema includes:
+This repository contains the **competition release** of Finfold:
 
-- `profiles` - account profile, plan, monthly limit, locale, and subscription metadata.
-- `content_kits` - generated kit metadata and source brief.
-- `kit_outputs` - per-platform generated outputs.
-- `brand_brains` - Brand Memory fields.
-- `subscriptions` - Creem subscription state.
-- `usage_events` - generation and product usage events.
-- `performance_metrics` - future-ready metrics for generated content.
-- `user_agents` - Supabase user to Letta agent mapping.
+- ✅ Included: application UI, agent workflow surface, platform adaptation layer, brand memory model, API route contracts, local-run setup, tests for included modules.
+- 🔒 Not included (kept private): full production database migrations, internal analytics & founder dashboards, payment operations tooling, and unreleased features under active development.
+- 💬 Commercial APIs are used for LLM generation and agent memory; all such calls sit behind provider-agnostic interfaces, with keys supplied via environment variables. No proprietary model weights are required to run the demo.
 
-Row Level Security is enabled so users can only read and mutate their own data. Service-role access is kept inside backend API routes.
-
-## Tech Stack
-
-- Next.js 15 with App Router
-- React 19
-- TypeScript
-- Tailwind CSS
-- Supabase Auth and Postgres
-- Letta AI agents
-- Creem payments
-- Vitest
-- Cloudflare Pages
-- Wrangler
-
-## Environment Variables
-
-Create `.env.local` from `.env.example`.
+### Quick Start
 
 ```bash
-cp .env.example .env.local
-```
-
-Required for a full hosted experience:
-
-| Variable | Description |
-| --- | --- |
-| `NEXT_PUBLIC_APP_URL` | Public app URL |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase publishable key |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only Supabase service role key |
-| `LETTA_API_URL` | Letta API URL, usually `https://api.letta.com` |
-| `LETTA_API_KEY` | Server-only Letta API key |
-| `LETTA_MODEL` | Model used by Letta agents |
-| `LETTA_EMBEDDING` | Embedding model used by Letta |
-| `CREEM_API_KEY` | Creem API key |
-| `CREEM_WEBHOOK_SECRET` | Creem webhook verification secret |
-| `CREEM_*_PRODUCT_ID` | Product IDs for paid plans |
-| `NEXT_PUBLIC_ALLOW_MOCK` | Keep `false` in production |
-
-Optional direct generation fallback:
-
-| Variable | Description |
-| --- | --- |
-| `LLM_API_BASE` | OpenAI-compatible chat completions endpoint |
-| `LLM_API_KEY` | Server-only model API key |
-| `LLM_MODEL` | Direct fallback model name |
-
-The preferred production path is Letta. Direct LLM variables are only needed if you want the app to fall back to an OpenAI-compatible provider when Letta is unavailable.
-
-## Local Development
-
-Install dependencies:
-
-```bash
+git clone https://github.com/joeymilano/Finfold.git
+cd Finfold
 npm install
+cp .env.example .env.local   # fill in your own keys (LLM API key is the only required one)
+npm run dev                  # http://localhost:3000
 ```
 
-Run the app:
+Live product (no setup): **<https://www.finfold.app>**
+
+### Repository Layout
+
+```
+app/           # pages + API routes (workbench, agents, brand memory, generation)
+components/    # UI: workbench, app shell, visual components
+lib/           # platform rules, brand brain, content pipeline, agent data
+hooks/         # client hooks (i18n, locale)
+test/          # unit tests for included modules
+docs/          # asset licenses & notes
+```
+
+### Safety & Compliance
+
+- No scraping of private accounts; content generation is grounded in user-provided context.
+- Per-user data isolation (row-level security in the live product).
+- Guardrails: banned phrases, safety hints, and human review before anything is published.
+
+### License
+
+Code in this repository is released under the [MIT License](./LICENSE). Third-party assets are listed in [`docs/asset-licenses.md`](./docs/asset-licenses.md).
+
+---
+
+## 中文说明
+
+### 解决什么问题
+
+独立开发者和小团队不断发布产品更新，但要把*一次更新*变成小红书、X、LinkedIn、Reddit、Instagram 等各平台原生的内容，意味着反复改写同一个故事——而且发布之后没有任何反馈闭环。
+
+通用聊天机器人能生成"一篇"内容，但不记得你的品牌、不懂各平台原生格式、不追踪发布后的真实表现、更不会从中学习。
+
+### Finfold 做什么
+
+Finfold 是一个 AI 内容工作台，把"产品信号 → 多平台原生内容 → 发布追踪 → 表现回流 → 私有规则"压缩成一条低门槛增长闭环：
+
+- **Workbench 工作台**：输入一次产品更新，一次性获得所选平台的原生标题、正文、CTA 与策略建议，附带品牌与质量评分。
+- **Brand Memory 品牌记忆**：定位、受众、语气关键词、优秀样例、禁用词——用得越多，输出越像"你"。
+- **AI Agent**：由 Letta 驱动的对话式智能体，能决定下一步创作什么、复用品牌上下文、调用产品工具。
+- **表现回流**：发布后的编辑差异与显性反馈进入私有规则，驱动下一轮生成。
+
+### 参赛信息
+
+- **赛事**：GOAI 世界人工智能开源大赛 · 无界应用 Boundless Agents 赛道
+- **细分场景**：面向独立开发者与精简团队的跨境内容增长智能体（AI + 出海营销）
+- **在线 Demo**：<https://www.finfold.app>
+
+### 快速开始
 
 ```bash
+git clone https://github.com/joeymilano/Finfold.git
+cd Finfold
+npm install
+cp .env.example .env.local   # 填入你自己的密钥（仅需一个 LLM API Key）
 npm run dev
 ```
 
-Open:
+### 安全与合规
 
-```text
-http://localhost:3000
-```
+- 不抓取私有账户数据；生成内容以用户提供的上下文为准。
+- 线上产品按用户行级隔离（RLS）。
+- 内置护栏：禁用词、安全提示，任何内容发布前均需人工确认。
 
-Set up Supabase:
+### 许可证
 
-1. Create a Supabase project.
-2. Run `supabase/schema.sql` in the Supabase SQL Editor.
-3. Apply any migrations in `supabase/migrations` if you are upgrading an existing database.
-4. Add the Supabase URL, publishable key, and service-role key to `.env.local`.
-
-Set up Letta:
-
-1. Create a Letta API key.
-2. Add `LETTA_API_KEY`, `LETTA_API_URL`, `LETTA_MODEL`, and `LETTA_EMBEDDING`.
-3. Sign in to Finfold and open `/agents` or generate content from `/workbench`.
-4. Finfold will create or reuse a per-user Letta agent automatically.
-
-## Validation
-
-```bash
-npm run typecheck
-npm test
-npm run build
-```
-
-For Cloudflare output:
-
-```bash
-npm run build:cf
-```
-
-## Cloudflare Pages Deployment
-
-Finfold is configured for Cloudflare Pages with `next-on-pages`.
-
-Recommended build settings:
-
-| Setting | Value |
-| --- | --- |
-| Build command | `npm run build:cf` |
-| Output directory | `.vercel/output/static` |
-| Root directory | `/` |
-
-The repository includes `wrangler.toml` with:
-
-```toml
-pages_build_output_dir = ".vercel/output/static"
-compatibility_flags = ["nodejs_compat"]
-```
-
-Preview locally:
-
-```bash
-npm run preview
-```
-
-Deploy with Wrangler:
-
-```bash
-npm run deploy
-```
-
-## Product Principles
-
-- Keep the first-run experience simple.
-- Make Brand Memory the durable product moat.
-- Avoid generic AI copy.
-- Keep generated content editable and inspectable.
-- Do not hide configuration failures behind fake output.
-- Prioritize individual creator workflows before adding team collaboration.
-
-## Repository Notes
-
-This repository is a product prototype and competition submission. It is intended to show a realistic path from AI-assisted content creation to a production-ready SaaS foundation, including auth, persistence, payments, agent memory, deployment, and validation.
-
-## License
-
-This project is provided as a prototype and competition submission. Add a formal license before using it in production or redistributing it commercially.
+本仓库代码以 [MIT License](./LICENSE) 开源，第三方素材见 [`docs/asset-licenses.md`](./docs/asset-licenses.md)。

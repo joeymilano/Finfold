@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Finfold icon language: sharp geometry for utility actions, with a restrained
+   two-tone gold signal for intelligence, memory, and automation concepts. */
+.fin-icon {
+  display: inline-block;
+  overflow: visible;
+  box-sizing: content-box;
+  flex: 0 0 auto;
+  transform-origin: center;
+}
+
+.fin-icon--signature {
+  --fa-primary-color: currentColor;
+  --fa-secondary-color: currentColor;
+  --fa-primary-opacity: 1;
+  --fa-secondary-opacity: 0.34;
+  filter: drop-shadow(0 0 0.35rem rgb(207 161 79 / 0.1));
+}
+
+.fin-icon--signature .fa-primary {
+  fill: var(--fa-primary-color, currentColor);
+  opacity: var(--fa-primary-opacity, 1);
+}
+
+.fin-icon--signature .fa-secondary {
+  fill: var(--fa-secondary-color, currentColor);
+  opacity: var(--fa-secondary-opacity, 0.34);
+}
+
 /* ============================================================
    Finfold design system — dual theme (Editorial / Signal)
    Tokens are raw "R G B" triplets so Tailwind can apply alpha
@@ -15,17 +43,31 @@
   --bg: 245 244 239;
   --surface: 255 255 251;
   --surface-2: 239 237 229;
+  --surface-raised: 255 255 255;
   --hairline: 218 211 196;
+  --hairline-strong: 198 189 174;
   --fg: 18 24 33;
   --fg-muted: 98 104 116;
 
   --brand: 181 128 61;
   --brand-strong: 133 91 45;
+  --on-brand: 18 24 33;
+  --action: 15 118 110;
+  --action-strong: 17 94 89;
+  --action-soft: 226 242 238;
+  --on-action: 255 255 255;
   --accent: 22 119 139;
 
   --positive: 17 132 91;
+  --info: 49 93 147;
   --warn: 181 128 61;
   --risk: 225 29 48;          /* #E11D48 */
+
+  /* Agent state pastels — slightly deepened for light-theme contrast */
+  --st-thinking: 196 128 96;
+  --st-drafting: 96 136 186;
+  --st-polishing: 148 116 186;
+  --st-published: 92 150 104;
 
   --grid-line: 229 224 214;
 
@@ -40,20 +82,35 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg: 7 10 16;
-  --surface: 13 17 25;
-  --surface-2: 18 24 34;
-  --hairline: 42 48 60;
-  --fg: 236 235 229;
-  --fg-muted: 145 152 164;
+  /* The Studio Floor — warm near-black, paper-warm ink */
+  --bg: 11 10 8;
+  --surface: 20 18 14;
+  --surface-2: 28 25 19;
+  --surface-raised: 35 32 27;
+  --hairline: 52 47 38;
+  --hairline-strong: 76 69 57;
+  --fg: 244 241 234;
+  --fg-muted: 184 178 165;
 
-  --brand: 214 166 92;
-  --brand-strong: 240 194 117;
+  --brand: 217 164 65;
+  --brand-strong: 232 184 75;
+  --on-brand: 11 10 8;
+  --action: 45 212 191;
+  --action-strong: 94 234 212;
+  --action-soft: 17 54 50;
+  --on-action: 7 22 21;
   --accent: 78 190 203;
 
   --positive: 65 211 153;
+  --info: 139 181 239;
   --warn: 240 194 117;
   --risk: 251 113 133;
+
+  /* Agent state pastels (Cursor-style timeline hues, warm-shifted) */
+  --st-thinking: 223 168 143;
+  --st-drafting: 159 187 224;
+  --st-polishing: 192 168 221;
+  --st-published: 159 201 162;
 
   --grid-line: 255 255 255;   /* used at low alpha */
 
@@ -85,6 +142,24 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   transition: background-color 240ms ease, color 240ms ease;
+}
+
+/* ============================================================
+   Mobile overflow guard — 根治横向溢出
+   flex/grid 子项默认 min-width 为 auto，遇到长 URL、whitespace-nowrap
+   文本或固定宽预览等不可断内容，会把容器撑到远超移动端视口。
+   注意：:where() 零特异性，让 Tailwind 的尺寸工具类始终优先。
+   ============================================================ */
+main :where(div, section, article, aside, li) {
+  min-width: 0;
+}
+
+img,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+  height: auto;
 }
 
 button,
@@ -133,6 +208,13 @@ button:disabled {
   box-shadow: 0 0 0 4px rgb(var(--brand) / 0.22);
 }
 
+/* Authenticated product surfaces use Editorial Teal for interaction. Public
+   marketing pages keep the established bronze focus treatment. */
+[data-product-shell] .focus-ring:focus-visible {
+  outline-color: rgb(var(--action));
+  box-shadow: 0 0 0 4px rgb(var(--action) / 0.2);
+}
+
 /* ============================================================
    Semantic component classes
    ============================================================ */
@@ -151,6 +233,10 @@ button:disabled {
 .panel-hover:hover {
   box-shadow: var(--shadow-raised);
   border-color: rgb(var(--brand) / 0.4);
+}
+
+[data-product-shell] .panel-hover:hover {
+  border-color: rgb(var(--action) / 0.42);
 }
 
 /* inset / secondary surface block */
@@ -196,6 +282,19 @@ button:disabled {
   transform: translateY(0);
 }
 
+[data-product-shell] .btn-primary {
+  color: rgb(var(--on-brand));
+  background: rgb(var(--brand));
+  border-color: rgb(var(--brand) / 0.65);
+  box-shadow: 0 12px 28px -18px rgb(var(--brand) / 0.72);
+}
+
+[data-product-shell] .btn-primary:hover {
+  background: rgb(var(--brand));
+  filter: brightness(0.98);
+  box-shadow: 0 16px 34px -18px rgb(var(--brand) / 0.78);
+}
+
 .btn-ghost {
   display: inline-flex;
   align-items: center;
@@ -221,6 +320,16 @@ button:disabled {
   transform: translateY(0);
 }
 
+[data-product-shell] .btn-ghost:hover {
+  border-color: rgb(var(--action) / 0.5);
+  background: rgb(var(--action) / 0.07);
+  color: rgb(var(--action-strong));
+}
+
+[data-theme="dark"] [data-product-shell] .btn-ghost:hover {
+  color: rgb(var(--action));
+}
+
 /* semantic pill badges */
 .tag {
   display: inline-flex;
@@ -232,6 +341,7 @@ button:disabled {
   font-weight: 600;
   line-height: 1.1;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
 
 .tag-neutral {
@@ -274,6 +384,22 @@ button:disabled {
   border-color: rgb(var(--accent) / 0.28);
 }
 
+.tag-action {
+  background: rgb(var(--action) / 0.11);
+  color: rgb(var(--action-strong));
+  border-color: rgb(var(--action) / 0.3);
+}
+
+[data-theme="dark"] .tag-action {
+  color: rgb(var(--action));
+}
+
+.tag-info {
+  background: rgb(var(--info) / 0.11);
+  color: rgb(var(--info));
+  border-color: rgb(var(--info) / 0.3);
+}
+
 /* pulsing live status dot */
 .status-dot {
   position: relative;
@@ -292,6 +418,15 @@ button:disabled {
   border-radius: 9999px;
   background: rgb(var(--brand));
   animation: rk-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+[data-product-shell] .status-dot,
+[data-product-shell] .status-dot::after {
+  background: rgb(var(--action));
+}
+
+[data-product-shell] .status-dot {
+  box-shadow: 0 0 0 0 rgb(var(--action) / 0.55);
 }
 
 /* ============================================================
@@ -323,6 +458,83 @@ button:disabled {
   50% { transform: scale(1.35); opacity: 0.58; }
 }
 
+@keyframes rk-fish-jump {
+  0%, 100% {
+    transform: translate3d(0, 5px, 0) rotate(-2deg) scale(0.98);
+  }
+  34% {
+    transform: translate3d(0, -9px, 0) rotate(4deg) scale(1.03);
+  }
+  58% {
+    transform: translate3d(0, -3px, 0) rotate(-5deg) scale(1.01);
+  }
+  78% {
+    transform: translate3d(0, 4px, 0) rotate(2deg) scale(0.99);
+  }
+}
+
+@keyframes rk-fish-logo {
+  0%, 100% {
+    transform: translateX(-1px) scale(1.42) skewX(0deg);
+  }
+  34% {
+    transform: translateX(2px) scale(1.46) skewX(-2deg);
+  }
+  58% {
+    transform: translateX(-3px) scale(1.44) skewX(2.5deg);
+  }
+}
+
+@keyframes rk-fish-ripple {
+  0% {
+    opacity: 0;
+    transform: scale(0.58);
+  }
+  18% {
+    opacity: 0.62;
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.18);
+  }
+}
+
+@keyframes rk-fish-shadow {
+  0%, 100% {
+    opacity: 0.52;
+    transform: translateX(-50%) scaleX(1.12);
+  }
+  34%, 58% {
+    opacity: 0.24;
+    transform: translateX(-50%) scaleX(0.7);
+  }
+}
+
+@keyframes rk-fish-current {
+  0%, 100% {
+    opacity: 0.34;
+    transform: translate3d(-7px, -50%, 0) scaleX(0.88);
+  }
+  50% {
+    opacity: 0.64;
+    transform: translate3d(7px, -50%, 0) scaleX(1.1);
+  }
+}
+
+@keyframes rk-fish-bubble {
+  0%, 18% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.6);
+  }
+  38% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -18px, 0) scale(1);
+  }
+}
+
 @keyframes rk-ping {
   0% { transform: scale(1); opacity: 0.7; }
   75%, 100% { transform: scale(2.4); opacity: 0; }
@@ -339,6 +551,14 @@ button:disabled {
 .rk-enter { animation: rk-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .rk-pulse-dot { animation: rk-pulse-dot 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
 .rk-draw { animation: rk-draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.rk-fish-jump { animation: rk-fish-jump 1.55s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.rk-fish-logo { animation: rk-fish-logo 1.55s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.rk-fish-ripple { animation: rk-fish-ripple 1.55s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.rk-fish-ripple-late { animation-delay: 520ms; }
+.rk-fish-shadow { animation: rk-fish-shadow 1.55s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.rk-fish-current { animation: rk-fish-current 2.4s ease-in-out infinite; }
+.rk-fish-bubble { animation: rk-fish-bubble 2.1s ease-in-out infinite; }
+.rk-fish-bubble-two { animation-delay: 640ms; }
 
 .rk-delay-1 { animation-delay: 80ms; }
 .rk-delay-2 { animation-delay: 160ms; }
@@ -377,6 +597,18 @@ button:disabled {
   }
 }
 
+/* Progressive enhancement: if JavaScript never runs (disabled, blocked or
+   hydration failure), nothing may stay trapped in its pre-animation state.
+   Inline initial styles from motion are overridden so all content renders. */
+@media (scripting: none) {
+  .will-change-transform,
+  [style*="opacity: 0"],
+  [style*="translate"] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 .brand-cn {
   font-family: "Songti SC", "STSong", "Noto Serif CJK SC", "Source Han Serif SC", serif;
   font-weight: 900;
@@ -384,6 +616,151 @@ button:disabled {
   font-feature-settings: "palt" 1;
   text-rendering: geometricPrecision;
 }
+
+/* ============================================================
+   Landing — typography + motion utilities
+   ============================================================ */
+
+.text-balance { text-wrap: balance; }
+.text-pretty { text-wrap: pretty; }
+
+.hero-stage {
+  background:
+    radial-gradient(80rem 34rem at 50% -12rem, rgb(var(--brand) / 0.16), transparent 72%),
+    radial-gradient(42rem 26rem at 12% 32%, rgb(var(--accent) / 0.10), transparent 68%),
+    rgb(var(--bg));
+}
+
+.hero-noise {
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.16) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 60%, rgb(255 255 255 / 0.10) 0 1px, transparent 1px);
+  background-size: 27px 27px, 41px 41px;
+}
+
+.hero-mesh {
+  background:
+    radial-gradient(38rem 20rem at 50% 18%, rgb(var(--brand-strong) / 0.22), transparent 70%),
+    radial-gradient(30rem 22rem at 82% 48%, rgb(var(--accent) / 0.18), transparent 72%),
+    linear-gradient(180deg, transparent, rgb(var(--bg)) 86%);
+}
+
+.hero-grid {
+  opacity: 0.48;
+  background-image:
+    linear-gradient(rgb(var(--grid-line) / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--grid-line) / 0.08) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: linear-gradient(to bottom, black, black 58%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to bottom, black, black 58%, transparent 92%);
+}
+
+.hero-sweep {
+  background: linear-gradient(90deg, transparent, rgb(var(--brand) / 0.75), rgb(var(--accent) / 0.65), transparent);
+  box-shadow: 0 0 38px rgb(var(--brand) / 0.42);
+}
+
+.hero-title {
+  letter-spacing: 0;
+}
+
+/* During the blur-in, each character wears a solid champagne gold —
+   per-character gradients read as rainbow noise. Once the line's
+   animation completes, `.hero-em-done` on the container swaps in one
+   continuous gradient across the whole line (background-clip:text
+   cannot survive filters on descendants, hence the two states). */
+.hero-title-em {
+  color: rgb(var(--brand-strong));
+  text-shadow: 0 0 42px rgb(var(--brand) / 0.20);
+}
+
+.hero-em-done {
+  color: transparent;
+  background: linear-gradient(
+    100deg,
+    #f7e8c0 0%,
+    rgb(var(--brand-strong)) 34%,
+    rgb(var(--brand)) 58%,
+    #efd493 82%,
+    #f7e8c0 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 34px rgb(var(--brand) / 0.16));
+  animation: hero-em-sheen 9s ease-in-out infinite;
+}
+
+.hero-em-done .hero-title-em {
+  color: transparent;
+  filter: none !important;
+  will-change: auto;
+  text-shadow: none;
+}
+
+[data-theme="light"] .hero-em-done {
+  background: linear-gradient(
+    100deg,
+    #8a6a35 0%,
+    rgb(var(--brand-strong)) 34%,
+    rgb(var(--brand)) 58%,
+    #6f5426 82%,
+    #8a6a35 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+@keyframes hero-em-sheen {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-em-done {
+    animation: none;
+  }
+}
+
+.hero-console {
+  position: relative;
+}
+
+.hero-console::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(120deg, rgb(255 255 255 / 0.18), transparent 26%, transparent 72%, rgb(var(--accent) / 0.16)),
+    linear-gradient(180deg, rgb(255 255 255 / 0.06), transparent 34%);
+  mix-blend-mode: screen;
+}
+
+@keyframes rk-progress {
+  0% { width: 9%; }
+  100% { width: 83%; }
+}
+
+.rk-progress {
+  animation: rk-progress 2.8s cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
+}
+
+@keyframes rk-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.rk-float { animation: rk-float 6s ease-in-out infinite; }
+.rk-float-slow { animation: rk-float 9s ease-in-out infinite; }
 
 .workbench-scroll {
   scrollbar-width: thin;
@@ -408,4 +785,525 @@ button:disabled {
 
 .workbench-scroll::-webkit-scrollbar-thumb:hover {
   background: rgb(var(--brand-strong) / 0.78);
+}
+
+/* ============================================================
+   Editorial Instrument — craft layer
+   Film grain, marquee belts, aurora beams, typewriter carets.
+   These sit on top of the token system and give the surface
+   its tactile, printed-matter quality.
+   ============================================================ */
+
+/* Film grain — a whisper of analog noise over the whole stage.
+   soft-light blend keeps it invisible on text but kills the
+   sterile flatness of pure digital surfaces. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+[data-theme="dark"] .grain {
+  opacity: 0.065;
+}
+
+/* Localized grain (contained within a section, e.g. dashboard sidebar) */
+.grain-local {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+/* Marquee belt — pairs with the Marquee primitive. Edge-fade mask
+   makes items appear to flow in from nowhere and dissolve out. */
+.rk-marquee-belt {
+  animation-name: rk-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+.rk-marquee-belt[data-pause-hover]:hover {
+  animation-play-state: paused;
+}
+
+.marquee-mask {
+  mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 7%, black 93%, transparent);
+}
+
+/* Typewriter caret — a brand-colored beam that blinks in steps,
+   like a terminal, not a text field. */
+.typing-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.1em;
+  background: rgb(var(--brand));
+  box-shadow: 0 0 8px rgb(var(--brand) / 0.6);
+  animation: rk-caret-blink 1.06s steps(1) infinite;
+}
+
+@keyframes rk-caret-blink {
+  0%, 52% { opacity: 1; }
+  53%, 100% { opacity: 0; }
+}
+
+/* Aurora beam — a slow-turning conic wash that sits above the hero.
+   One full rotation takes 42s: felt as "alive", never as "moving". */
+.hero-aurora {
+  position: absolute;
+  left: 50%;
+  top: -24rem;
+  width: 78rem;
+  height: 40rem;
+  transform: translateX(-50%);
+  background: conic-gradient(
+    from 90deg at 50% 50%,
+    transparent 0deg,
+    rgb(var(--brand) / 0.16) 70deg,
+    transparent 140deg,
+    rgb(var(--accent) / 0.11) 220deg,
+    transparent 300deg
+  );
+  filter: blur(64px);
+  animation: rk-aurora-drift 42s linear infinite;
+  will-change: transform;
+}
+
+@keyframes rk-aurora-drift {
+  0% { transform: translateX(-50%) rotate(0.001deg); }
+  100% { transform: translateX(-50%) rotate(360deg); }
+}
+
+/* Breathing glow for the final call-to-action */
+@keyframes rk-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.07); }
+}
+
+.rk-breathe {
+  animation: rk-breathe 7.5s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+/* Gradient hairline — a divider that fades in from nothing and
+   back out, used between major movements of the page. */
+.hairline-fade {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(var(--hairline)) 18%,
+    rgb(var(--brand) / 0.45) 50%,
+    rgb(var(--hairline)) 82%,
+    transparent
+  );
+}
+
+/* Shimmer — loading state sweep for generation surfaces */
+@keyframes rk-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(
+    100deg,
+    rgb(var(--surface-2)) 40%,
+    rgb(var(--surface)) 50%,
+    rgb(var(--surface-2)) 60%
+  );
+  background-size: 200% 100%;
+  animation: rk-shimmer 1.7s linear infinite;
+}
+
+/* Flow connector — the gradient thread linking the four steps */
+.flow-thread {
+  background: linear-gradient(
+    90deg,
+    rgb(var(--brand) / 0.55),
+    rgb(var(--accent) / 0.5),
+    rgb(var(--positive) / 0.5)
+  );
+}
+
+/* Lift — a hover that raises a card and lets its shadow settle,
+   with the signature exponential-out curve. */
+.lift {
+  transition: transform 340ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 340ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 340ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-raised);
+}
+
+/* ============================================================
+   The Studio Floor — display typography & material system
+   ============================================================ */
+
+/* Display serif: Fraunces for Latin, Noto Serif SC 900 for CJK.
+   Tight tracking and tall caps carry the editorial voice. */
+.font-display {
+  font-family: var(--font-fraunces), var(--font-cover-serif), "Songti SC", serif;
+  font-weight: 560;
+  letter-spacing: -0.028em;
+  font-variation-settings: "SOFT" 30, "WONK" 0;
+}
+
+.font-display-zh {
+  font-family: var(--font-cover-serif), "Songti SC", serif;
+  font-weight: 900;
+  letter-spacing: -0.015em;
+}
+
+/* The signature italic accent word inside a headline */
+.font-display em,
+.font-display-zh em {
+  font-style: italic;
+  font-weight: 480;
+  color: rgb(var(--brand-strong));
+}
+
+/* Monospace lead-punch label — the Studio Floor's typefoundry tag */
+.eyebrow-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(var(--fg-muted));
+}
+
+/* Liquid glass 2.0 — frosted panel with a gradient-lit edge */
+.glass {
+  position: relative;
+  background: linear-gradient(
+    180deg,
+    rgb(var(--fg) / 0.055),
+    rgb(var(--fg) / 0.02) 42%,
+    rgb(var(--fg) / 0.045)
+  );
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  backdrop-filter: blur(18px) saturate(1.25);
+  border: 1px solid rgb(var(--fg) / 0.09);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgb(var(--fg) / 0.08),
+    0 24px 64px -32px rgb(0 0 0 / 0.72);
+}
+
+[data-theme="light"] .glass {
+  background: linear-gradient(
+    180deg,
+    rgb(255 255 255 / 0.72),
+    rgb(255 255 255 / 0.42)
+  );
+  border-color: rgb(18 24 33 / 0.08);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    0 24px 64px -32px rgb(18 24 33 / 0.28);
+}
+
+/* ============================================================
+   Liquid glass — near-invisible fill with a refractive stroke.
+   The border is not a real border: a ::before ring carries a
+   vertical gradient (bright at the edges, gone in the middle),
+   masked to the padding box so only a 1.4px stroke survives.
+   Two weights: .liquid-glass for pills/chips floating over the
+   hero atmosphere, .liquid-glass-strong for framed panels that
+   need deep frost. Base rules assume the dark Studio Floor; the
+   [data-theme="light"] overrides swap white strokes for
+   fg-tinted ones so the glass reads on warm paper too.
+   ============================================================ */
+.liquid-glass {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.01);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+.liquid-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.15) 20%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.15) 80%,
+    rgba(255, 255, 255, 0.45) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.liquid-glass-strong {
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.01);
+  -webkit-backdrop-filter: blur(50px);
+  backdrop-filter: blur(50px);
+  box-shadow:
+    4px 4px 4px rgba(0, 0, 0, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+.liquid-glass-strong::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.4px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.5) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0) 60%,
+    rgba(255, 255, 255, 0.2) 80%,
+    rgba(255, 255, 255, 0.5) 100%
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Paper-side variant: dark-tinted strokes (from --fg ink) and a
+   whisper of dark fill so the glass doesn't vanish on light pages. */
+[data-theme="light"] .liquid-glass {
+  background: rgba(18, 24, 33, 0.02);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.65);
+}
+
+[data-theme="light"] .liquid-glass::before {
+  background: linear-gradient(
+    180deg,
+    rgba(18, 24, 33, 0.28) 0%,
+    rgba(18, 24, 33, 0.1) 20%,
+    rgba(18, 24, 33, 0) 40%,
+    rgba(18, 24, 33, 0) 60%,
+    rgba(18, 24, 33, 0.1) 80%,
+    rgba(18, 24, 33, 0.28) 100%
+  );
+}
+
+[data-theme="light"] .liquid-glass-strong {
+  background: rgba(255, 255, 255, 0.34);
+  box-shadow:
+    4px 4px 4px rgba(18, 24, 33, 0.04),
+    inset 0 1px 1px rgba(255, 255, 255, 0.75);
+}
+
+[data-theme="light"] .liquid-glass-strong::before {
+  background: linear-gradient(
+    180deg,
+    rgba(18, 24, 33, 0.32) 0%,
+    rgba(18, 24, 33, 0.13) 20%,
+    rgba(18, 24, 33, 0) 40%,
+    rgba(18, 24, 33, 0) 60%,
+    rgba(18, 24, 33, 0.13) 80%,
+    rgba(18, 24, 33, 0.32) 100%
+  );
+}
+
+/* Gold ember glow — reserved for live CTAs and agent-active surfaces */
+.glow-ember {
+  position: absolute;
+  border-radius: 9999px;
+  background: radial-gradient(
+    closest-side,
+    rgb(var(--brand) / 0.16),
+    rgb(var(--brand) / 0.05) 55%,
+    transparent
+  );
+  filter: blur(12px);
+  pointer-events: none;
+}
+
+/* Film reel perforation strip — punched sprocket holes */
+.reel-sprockets {
+  height: 22px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 14px,
+    rgb(var(--fg) / 0.16) 14px,
+    rgb(var(--fg) / 0.16) 26px,
+    transparent 26px,
+    transparent 40px
+  );
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 30%, #000 70%, transparent);
+}
+
+/* Giant footer watermark — the studio's sign painted on the floor */
+.floor-watermark {
+  font-family: var(--font-fraunces), var(--font-cover-serif), serif;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  line-height: 0.78;
+  color: transparent;
+  -webkit-text-stroke: 1px rgb(var(--fg) / 0.07);
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Headline shimmer — a slow gold sheen that sweeps the display type
+   once every few seconds, like light crossing wet ink. */
+.ink-sheen {
+  background: linear-gradient(
+    100deg,
+    rgb(var(--fg)) 0%,
+    rgb(var(--fg)) 42%,
+    rgb(var(--brand-strong)) 50%,
+    rgb(var(--fg)) 58%,
+    rgb(var(--fg)) 100%
+  );
+  background-size: 280% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rk-ink-sheen 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes rk-ink-sheen {
+  0%, 62% { background-position: 120% 0; }
+  88%, 100% { background-position: -60% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-sheen { animation: none; background: none; color: rgb(var(--fg)); }
+  .rk-breathe { animation: none; }
+  .hero-aurora { animation: none; }
+}
+
+/* Vertical reel belt — the content wall in "The Reel" section scrolls
+   upward endlessly; the reverse column runs the other way. */
+@keyframes rk-reel-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.reel-belt {
+  animation: rk-reel-scroll var(--reel-duration, 46s) linear infinite;
+  will-change: transform;
+}
+
+.reel-belt[data-reverse] {
+  animation-direction: reverse;
+}
+
+.reel-mask {
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
+  mask-image: linear-gradient(180deg, transparent, #000 10%, #000 90%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-belt { animation: none; }
+}
+
+/* Platform spiral — brand marks move as a single vortex while a
+   counter-rotation keeps every mark readable. */
+@keyframes spiral-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spiral-stage {
+  width: min(100%, 350px);
+  aspect-ratio: 1;
+  --spiral-unit: clamp(5.9px, 1.94vw, 7.55px);
+  isolation: isolate;
+}
+
+@media (min-width: 640px) {
+  .spiral-stage {
+    width: min(100%, 520px);
+    --spiral-unit: 13.1px;
+  }
+}
+
+.spiral-spin {
+  position: absolute;
+  inset: 0;
+  animation: spiral-rotate 52s linear infinite;
+  will-change: transform;
+}
+
+.spiral-path {
+  stroke: rgb(var(--fg) / 0.16);
+  stroke-width: 1;
+  stroke-dasharray: 2 7;
+  stroke-linecap: round;
+}
+
+.spiral-upright {
+  animation: spiral-rotate 52s linear infinite reverse;
+  will-change: transform;
+}
+
+.spiral-platform-chip {
+  width: var(--spiral-chip-size);
+  height: var(--spiral-chip-size);
+  transition: filter 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.spiral-platform-glyph {
+  width: var(--spiral-glyph-size);
+  height: var(--spiral-glyph-size);
+}
+
+.spiral-platform-chip:hover {
+  filter: saturate(1.12) brightness(1.08);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.22), 0 0 0 4px rgb(255 255 255 / 0.08);
+  transform: scale(1.08);
+}
+
+.spiral-tracer {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgb(var(--brand));
+  transform: translate(-50%, -50%) rotate(750deg) translateY(calc(var(--spiral-unit) * -16.7));
+  box-shadow: 0 0 16px rgb(var(--brand) / 0.9), 0 0 4px rgb(var(--brand));
+}
+
+.spiral-stage:hover .spiral-spin,
+.spiral-stage:hover .spiral-upright {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spiral-spin,
+  .spiral-upright { animation: none; }
 }

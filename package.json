@@ -1,6 +1,6 @@
 {
   "name": "finfold",
-  "version": "0.1.0",
+  "version": "0.9.0-beta.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -14,21 +14,26 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@paper-design/shaders-react": "^0.0.77",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
     "geist": "^1.7.2",
-    "lucide-react": "^0.468.0",
+    "jsqr": "^1.4.0",
+    "lottie-react": "^2.4.1",
+    "lucide-react": "0.468.0",
+    "modern-screenshot": "^4.7.0",
     "motion": "^12.40.0",
-    "next": "^15.1.3",
-    "pg": "^8.21.0",
+    "next": "^15.5.22",
     "posthog-js": "^1.203.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "read-excel-file": "^9.3.5",
     "reicon-react": "^1.1.0",
     "zod": "^3.24.1"
   },
   "devDependencies": {
-    "@cloudflare/next-on-pages": "^1.13.16",
+    "@opennextjs/cloudflare": "^1.20.2",
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",
@@ -37,12 +42,13 @@
     "@types/react-dom": "^19.0.2",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.1.3",
+    "eslint-config-next": "^15.5.22",
     "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
+    "rclone.js": "^0.6.6",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8",
-    "wrangler": "^4.98.0"
+    "vitest": "^3.2.6",
+    "wrangler": "^4.115.0"
   }
 }

@@ -7,6 +7,11 @@ type GenerateGateInput = {
   authenticated: boolean;
   trialUsed: boolean;
   locale: Locale;
+  /** Max platforms the current plan allows per kit. Omit to skip this check
+   * (e.g. before the entitlements response has loaded). */
+  platformLimit?: number;
+  /** Operational cap shared by every plan to keep one generation bounded. */
+  maxPlatformsPerGeneration?: number;
 };
 
 export function getGenerateDisabledReason({
@@ -15,7 +20,9 @@ export function getGenerateDisabledReason({
   isLoading,
   authenticated,
   trialUsed,
-  locale
+  locale,
+  platformLimit,
+  maxPlatformsPerGeneration
 }: GenerateGateInput): string | null {
   const ideaLength = ideaText.trim().length;
 
@@ -31,6 +38,21 @@ export function getGenerateDisabledReason({
 
   if (selectedPlatformCount < 1) {
     return locale === "en" ? "Select at least 1 platform to generate for." : "请至少选择 1 个要生成的平台。";
+  }
+
+  if (
+    typeof maxPlatformsPerGeneration === "number" &&
+    selectedPlatformCount > maxPlatformsPerGeneration
+  ) {
+    return locale === "en"
+      ? `Choose up to ${maxPlatformsPerGeneration} platforms per generation to keep it fast and reliable.`
+      : `为保证生成速度和稳定性，单次最多选择 ${maxPlatformsPerGeneration} 个平台。`;
+  }
+
+  if (typeof platformLimit === "number" && selectedPlatformCount > platformLimit) {
+    return locale === "en"
+      ? `Your plan supports up to ${platformLimit} platforms per kit. Deselect some, or upgrade.`
+      : `当前套餐每份内容包最多支持 ${platformLimit} 个平台，请取消选择或升级套餐。`;
   }
 
   if (!authenticated && trialUsed) {

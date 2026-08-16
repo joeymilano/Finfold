@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "lucide-react";
+import { CheckCircle2, XCircle, Info, AlertTriangle, X } from "@/components/ui/icons";
 import { cn } from "@/lib/cn";
 
 /* ------------------------------------------------------------------ */
@@ -11,21 +11,34 @@ import { cn } from "@/lib/cn";
 
 type ToastType = "success" | "error" | "info" | "warning";
 
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: string;
   type: ToastType;
   message: string;
   duration: number;
+  action?: ToastAction;
+  secondaryAction?: ToastAction;
 }
 
 /* ------------------------------------------------------------------ */
 /*  Global dispatch — fire from anywhere                              */
 /* ------------------------------------------------------------------ */
 
-export function addToast(type: ToastType, message: string, duration = 4000) {
+export function addToast(
+  type: ToastType,
+  message: string,
+  duration = 4000,
+  action?: ToastAction,
+  secondaryAction?: ToastAction,
+) {
   window.dispatchEvent(
     new CustomEvent("finfold-toast", {
-      detail: { type, message, duration } as Omit<ToastItem, "id">,
+      detail: { type, message, duration, action, secondaryAction } as Omit<ToastItem, "id">,
     }),
   );
 }
@@ -100,8 +113,32 @@ export function ToastContainer() {
                 COLORS[toast.type],
               )}
             >
-              <Icon className={cn("mt-0.5 h-4.5 w-4.5 shrink-0", ICON_COLORS[toast.type])} />
+              <Icon className={cn("mt-0.5 h-5 w-5 shrink-0", ICON_COLORS[toast.type])} />
               <p className="flex-1 text-sm leading-snug text-fg">{toast.message}</p>
+              {toast.action ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.action?.onClick();
+                    remove(toast.id);
+                  }}
+                  className="shrink-0 rounded-md px-2 py-0.5 text-xs font-semibold text-accent transition-colors hover:underline"
+                >
+                  {toast.action.label}
+                </button>
+              ) : null}
+              {toast.secondaryAction ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.secondaryAction?.onClick();
+                    remove(toast.id);
+                  }}
+                  className="shrink-0 rounded-md px-2 py-0.5 text-xs font-medium text-fg-muted transition-colors hover:text-fg hover:underline"
+                >
+                  {toast.secondaryAction.label}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => remove(toast.id)}

@@ -45,4 +45,17 @@ describe("workbench generate gating", () => {
       locale: "en"
     })).toBeNull();
   });
+
+  it("explains the six-platform operational limit separately from plan upgrades", () => {
+    expect(getGenerateDisabledReason({
+      ideaText: "This is a fully described product idea for testing.",
+      selectedPlatformCount: 7,
+      isLoading: false,
+      authenticated: true,
+      trialUsed: false,
+      locale: "zh",
+      platformLimit: 14,
+      maxPlatformsPerGeneration: 6
+    })).toBe("为保证生成速度和稳定性，单次最多选择 6 个平台。");
+  });
 });

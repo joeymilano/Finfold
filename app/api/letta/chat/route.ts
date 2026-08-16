@@ -1,4 +1,3 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import {
@@ -14,6 +13,8 @@ import {
   isLettaConfigured,
 } from "@/lib/letta";
 
+const LEGACY_LETTA_CHAT_RETIRED = true;
+
 /**
  * POST /api/letta/chat
  *
@@ -26,6 +27,13 @@ import {
  *  - Streaming: set `Accept: text/event-stream` to get SSE
  */
 export async function POST(request: Request) {
+  if (LEGACY_LETTA_CHAT_RETIRED) {
+    return NextResponse.json(
+      { error: "This legacy AI chat endpoint has been retired. Use /api/agent/chat." },
+      { status: 410 }
+    );
+  }
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -61,10 +69,12 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as {
     message?: string;
+    images?: string[];
   };
 
-  const userMessage = body.message?.trim();
-  if (!userMessage) {
+  const userMessage = body.message?.trim() ?? "";
+  const images = Array.isArray(body.images) ? body.images.filter(Boolean) : [];
+  if (!userMessage && images.length === 0) {
     return NextResponse.json(
       { error: "Message is required." },
       { status: 400 }
@@ -157,7 +167,7 @@ export async function POST(request: Request) {
   if (wantsStream) {
     // ── Streaming response ──────────────────────────────────────
     try {
-      const stream = await streamLettaMessage(agentId, userMessage);
+      const stream = await streamLettaMessage(agentId, userMessage, images);
 
       return new Response(stream, {
         headers: {
@@ -176,7 +186,7 @@ export async function POST(request: Request) {
 
   // ── Normal (non-streaming) response ───────────────────────────
   try {
-    const result = await sendLettaMessage(agentId, userMessage);
+    const result = await sendLettaMessage(agentId, userMessage, undefined, images);
 
     return NextResponse.json({
       reply: result.assistantMessage,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "@/components/ui/icons";
 import type { KitOutput } from "@/lib/content-schema";
 import type { BrandBrain } from "@/lib/brand-brain";
 import { computeKitScores } from "@/lib/quality-score";
@@ -57,8 +57,8 @@ export function QualityScorePanel({ outputs, brain, locale }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between gap-4 px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-brand/10">
-            <Sparkles className="h-4 w-4 text-brand" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-action/[0.1]">
+            <Sparkles className="h-4 w-4 text-action-strong dark:text-action" />
           </div>
           <div>
             <h3 className="text-sm font-semibold text-fg">
@@ -66,8 +66,8 @@ export function QualityScorePanel({ outputs, brain, locale }: Props) {
             </h3>
             <p className="text-xs text-fg-muted">
               {en
-                ? "Clarity · Platform fit · Brand compliance · CTA strength"
-                : "结构清晰度 · 平台契合度 · 品牌合规 · CTA 强度"}
+                ? "Human voice · Clarity · Platform fit · Brand compliance · CTA strength"
+                : "真人感 · 结构清晰度 · 平台契合度 · 品牌合规 · CTA 强度"}
             </p>
           </div>
         </div>

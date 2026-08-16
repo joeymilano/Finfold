@@ -32,7 +32,14 @@ export async function createSupabaseServerClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {
+            // Server Components receive a read-only cookie store. Session refreshes are
+            // still persisted by middleware, which runs before these components render.
+          }
         }
       }
     }
@@ -63,7 +70,10 @@ export async function getCurrentUserId(): Promise<string> {
   const supabase = await createSupabaseServerClient();
 
   if (!supabase) {
-    if (process.env.NEXT_PUBLIC_ALLOW_MOCK === "true") {
+    // Server-only (not NEXT_PUBLIC_*) and explicitly restricted to non-production,
+    // so a stray `true` in a preview/staging deploy config can't let every
+    // anonymous visitor authenticate as the same shared "local-preview-user".
+    if (process.env.NODE_ENV !== "production" && process.env.ALLOW_MOCK === "true") {
       return "local-preview-user";
     }
     throw new Error("Unauthorized");

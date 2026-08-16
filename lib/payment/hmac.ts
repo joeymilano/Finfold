@@ -1,5 +1,5 @@
 // Edge-compatible HMAC-SHA256 verification using Web Crypto API
-// Works on Cloudflare Pages / Vercel Edge / any runtime with crypto.subtle
+// Works on Cloudflare Workers / Vercel Edge / any runtime with crypto.subtle
 
 /**
  * Verify an HMAC-SHA256 signature (hex-encoded) against a payload and secret.
@@ -12,6 +12,20 @@ export async function verifyHmacSHA256(
   signature: string,
   secret: string
 ): Promise<boolean> {
+  const expectedHex = await signHmacSHA256(payload, secret);
+
+  return timingSafeEqual(expectedHex, signature);
+}
+
+/**
+ * Create the lowercase hex HMAC expected by Creem. Exported so the isolated
+ * staging payment fixture can exercise the real signed webhook boundary
+ * without exposing the webhook secret to CI or a browser.
+ */
+export async function signHmacSHA256(
+  payload: string,
+  secret: string
+): Promise<string> {
   const encoder = new TextEncoder();
 
   const key = await crypto.subtle.importKey(
@@ -23,9 +37,7 @@ export async function verifyHmacSHA256(
   );
 
   const sigBuffer = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  const expectedHex = bufferToHex(sigBuffer);
-
-  return timingSafeEqual(expectedHex, signature);
+  return bufferToHex(sigBuffer);
 }
 
 /** Convert an ArrayBuffer to a lowercase hex string */

@@ -1,7 +1,11 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { analyzePassword } from "@/lib/password-policy";
+import { attributeReferral, readReferralCode, REFERRAL_COOKIE } from "@/lib/referrals";
+import { getAuthCallbackUrl } from "@/lib/auth-callback-url";
+import { mapSignupError } from "@/lib/signup-error";
 
 /**
  * POST /api/auth/signup
@@ -13,6 +17,9 @@ import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
  * Expected body: { email: string, password: string }
  */
 export async function POST(request: Request) {
+  const rateLimited = enforceApiRateLimit(request, { scope: "auth:signup", limit: 5, windowMs: 60 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -23,6 +30,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     email?: string;
     password?: string;
+    next?: string;
   };
 
   const email = body.email?.trim();
@@ -35,9 +43,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (password.length < 6) {
+  // 密码强度硬校验（与前端共享同一策略，防绕过）
+  const pwdResult = analyzePassword(password);
+  if (!pwdResult.valid) {
     return NextResponse.json(
-      { error: "Password must be at least 6 characters." },
+      { error: pwdResult.messageEn || "Password does not meet requirements." },
       { status: 400 }
     );
   }
@@ -50,13 +60,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: `${appUrl}/auth/callback`,
+      emailRedirectTo: getAuthCallbackUrl(request, undefined, body.next),
       data: {
         plan: "free",
       },
@@ -64,36 +72,28 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    // Map common Supabase error messages to user-friendly messages
-    const message = error.message.toLowerCase();
-    if (message.includes("already registered") || message.includes("user already registered")) {
-      return NextResponse.json(
-        { error: "This email is already registered. Try logging in instead." },
-        { status: 409 }
-      );
-    }
-    if (message.includes("password")) {
-      return NextResponse.json(
-        { error: "Password does not meet requirements." },
-        { status: 400 }
-      );
-    }
-    if (message.includes("email")) {
-      return NextResponse.json(
-        { error: "Invalid email address." },
-        { status: 400 }
-      );
-    }
+    const mapped = mapSignupError(error);
     return NextResponse.json(
-      { error: error.message || "Sign-up failed. Please try again." },
-      { status: 400 }
+      { error: mapped.error, code: mapped.code },
+      { status: mapped.status }
     );
   }
 
   // Check if email confirmation is required
   const needsConfirmation = !data.session && data.user && !data.user.confirmed_at;
 
-  return NextResponse.json({
+  if (data.user) {
+    await attributeReferral({
+      code: readReferralCode(request),
+      referredUserId: data.user.id,
+      userCreatedAt: data.user.created_at,
+      request
+    }).catch((referralError) =>
+      console.error("[signup] referral attribution failed", referralError)
+    );
+  }
+
+  const response = NextResponse.json({
     user: data.user
       ? {
           id: data.user.id,
@@ -107,4 +107,6 @@ export async function POST(request: Request) {
       : null,
     needsConfirmation,
   });
+  response.cookies.delete(REFERRAL_COOKIE);
+  return response;
 }

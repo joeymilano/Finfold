@@ -1,5 +1,12 @@
 import type { KitOutput } from "@/lib/content-schema";
 import type { BrandBrain } from "@/lib/brand-brain";
+import { cleanContentTitle, isUsableContentTitle } from "@/lib/content-title";
+import { assessHumanWriting } from "@/lib/human-writing";
+import { getIndustryBannedPatterns } from "@/lib/industry-rules";
+import type { IndustryPackId } from "@/lib/industry-rules/types";
+
+/** Incremented whenever persisted score dimensions or weights change. */
+export const QUALITY_SCORE_VERSION = 2;
 
 export type ScoreDimension = {
   key: string;
@@ -20,9 +27,12 @@ export type QualityScore = {
 const PLATFORM_IDEAL_LENGTHS: Record<string, { min: number; max: number }> = {
   wechat: { min: 400, max: 5000 },
   xiaohongshu: { min: 100, max: 1000 },
+  zhihu: { min: 500, max: 8000 },
   moments: { min: 50, max: 400 },
   x: { min: 50, max: 280 },
   linkedin: { min: 300, max: 3000 },
+  instagram: { min: 100, max: 1500 },
+  facebook: { min: 60, max: 500 },
   reddit: { min: 200, max: 2000 },
   "product-hunt": { min: 200, max: 800 },
   threads: { min: 30, max: 500 },
@@ -148,7 +158,7 @@ function scoreBrandConsistency(output: KitOutput, brain: BrandBrain): ScoreDimen
 
 /* 5. Clarity: checks title length and structural completeness */
 function scoreClarity(output: KitOutput): ScoreDimension {
-  const titleLen = output.title.trim().length;
+  const titleLen = isUsableContentTitle(output.title) ? cleanContentTitle(output.title).length : 0;
   const bodyLen = output.body.trim().length;
   const ctaLen = output.cta.trim().length;
 
@@ -196,18 +206,78 @@ function scoreEnglishNaturalness(output: KitOutput): ScoreDimension {
   return { key: "english", labelZh: "英文自然度", labelEn: "English Fluency", score, reasonZh, reasonEn };
 }
 
-/* Aggregate all dimensions into an overall score */
-export function computeQualityScore(output: KitOutput, brain: BrandBrain): QualityScore {
-  const dimensions: ScoreDimension[] = [
+/* 7. Human voice: deterministic checks for exposed Markdown, template
+ * phrasing, rhetoric pivots, inflated jargon, and mechanical paragraph rhythm.
+ * This complements factual grounding; it does not try to prove authorship. */
+function scoreHumanVoice(output: KitOutput): ScoreDimension {
+  const assessment = assessHumanWriting(output);
+  const firstIssue = assessment.issues[0];
+  const reasonZh = !firstIssue
+    ? "表达具体自然，未检测到明显模型化表达"
+    : `检测到 ${assessment.issues.length} 处模型化表达，优先处理“${firstIssue.phrase}”`;
+  const reasonEn = !firstIssue
+    ? "Concrete, natural voice with no explicit templated patterns detected"
+    : `Found ${assessment.issues.length} templated pattern(s); address “${firstIssue.phrase}” first`;
+
+  return {
+    key: "human_voice",
+    labelZh: "真人感",
+    labelEn: "Human Voice",
+    score: assessment.score,
+    reasonZh,
+    reasonEn
+  };
+}
+
+/* 8. Industry compliance: hard-checks banned patterns from the user's
+ * opted-in industry packs (medical/legal/advertising/finance regulations —
+ * see lib/industry-rules/). Only computed when packs are enabled, since an
+ * unregulated user has nothing to check against. */
+function scoreIndustryCompliance(output: KitOutput, packIds: IndustryPackId[]): ScoreDimension {
+  const fullText = [output.title, output.body, output.cta].join(" ");
+  const patterns = getIndustryBannedPatterns(packIds);
+  const hits = patterns.filter((source) => {
+    try {
+      return new RegExp(source, "i").test(fullText);
+    } catch {
+      return false;
+    }
+  });
+  const score = clamp(100 - hits.length * 25);
+
+  const reasonZh = hits.length === 0
+    ? "未检测到行业合规违禁表达"
+    : `检测到 ${hits.length} 处行业违禁表达，涉及合规风险，必须修改`;
+  const reasonEn = hits.length === 0
+    ? "No industry-restricted phrases detected"
+    : `Found ${hits.length} industry-restricted phrase(s) — compliance risk, must revise`;
+
+  return { key: "industry_compliance", labelZh: "行业合规", labelEn: "Industry Compliance", score, reasonZh, reasonEn };
+}
+
+/* Aggregate all dimensions into an overall score. When industryPackIds is
+ * non-empty, industry compliance is added as a 7th dimension and weights are
+ * rebalanced so a compliance violation meaningfully drags the overall score
+ * down instead of being diluted to near-zero effect. */
+export function computeQualityScore(output: KitOutput, brain: BrandBrain, industryPackIds: IndustryPackId[] = []): QualityScore {
+  const baseDimensions: ScoreDimension[] = [
     scorePlatformNativeness(output),
     scoreCTAStrength(output),
     scoreAdRisk(output),
     scoreBrandConsistency(output, brain),
     scoreClarity(output),
     scoreEnglishNaturalness(output),
+    scoreHumanVoice(output),
   ];
+  const baseWeights = [0.22, 0.18, 0.14, 0.18, 0.10, 0.08, 0.10];
 
-  const weights = [0.25, 0.20, 0.15, 0.20, 0.10, 0.10];
+  const dimensions = industryPackIds.length > 0
+    ? [...baseDimensions, scoreIndustryCompliance(output, industryPackIds)]
+    : baseDimensions;
+  const weights = industryPackIds.length > 0
+    ? [...baseWeights.map((w) => w * 0.7), 0.3]
+    : baseWeights;
+
   const overall = clamp(
     dimensions.reduce((acc, dim, i) => acc + dim.score * weights[i], 0)
   );
@@ -221,9 +291,10 @@ export function computeQualityScore(output: KitOutput, brain: BrandBrain): Quali
 /* Compute per-platform scores for an array of outputs */
 export function computeKitScores(
   outputs: KitOutput[],
-  brain: BrandBrain
+  brain: BrandBrain,
+  industryPackIds: IndustryPackId[] = []
 ): Record<string, QualityScore> {
   return Object.fromEntries(
-    outputs.map((output) => [output.platform, computeQualityScore(output, brain)])
+    outputs.map((output) => [output.platform, computeQualityScore(output, brain, industryPackIds)])
   );
 }

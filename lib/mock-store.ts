@@ -1,8 +1,26 @@
 import type { ContentKit, IterationReport, PerformanceMetrics } from "@/lib/content-schema";
 
-const kits = new Map<string, ContentKit>();
-const performance = new Map<string, PerformanceMetrics[]>();
-const iterationReports = new Map<string, IterationReport[]>();
+// Back the in-memory store with a globalThis singleton. Edge route bundles are
+// isolated per-route and HMR resets module-level state, so plain module-level
+// Maps would not be shared between /api/generate (write) and /api/kits (read).
+// Pinning them to globalThis keeps a single shared instance across both.
+type MockStore = {
+  kits: Map<string, ContentKit>;
+  performance: Map<string, PerformanceMetrics[]>;
+  iterationReports: Map<string, IterationReport[]>;
+};
+
+const globalRef = globalThis as typeof globalThis & { __finfoldMockStore?: MockStore };
+
+const store: MockStore =
+  globalRef.__finfoldMockStore ??
+  (globalRef.__finfoldMockStore = {
+    kits: new Map<string, ContentKit>(),
+    performance: new Map<string, PerformanceMetrics[]>(),
+    iterationReports: new Map<string, IterationReport[]>()
+  });
+
+const { kits, performance, iterationReports } = store;
 
 export function saveMockKit(kit: ContentKit): ContentKit {
   kits.set(kit.id, kit);
@@ -15,6 +33,13 @@ export function listMockKits(): ContentKit[] {
 
 export function getMockKit(kitId: string): ContentKit | null {
   return kits.get(kitId) ?? null;
+}
+
+export function deleteMockKit(kitId: string): boolean {
+  const deleted = kits.delete(kitId);
+  performance.delete(kitId);
+  iterationReports.delete(kitId);
+  return deleted;
 }
 
 export function saveMockPerformance(kitId: string, metrics: PerformanceMetrics): PerformanceMetrics[] {

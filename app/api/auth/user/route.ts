@@ -1,4 +1,3 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseAdminClient, createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
@@ -39,7 +38,6 @@ export async function GET() {
   // Try to fetch profile data from the profiles table first
   let plan: string | null = null;
   let locale: string | null = null;
-
   const admin = createSupabaseAdminClient();
   if (admin) {
     const { data: profileRow } = await admin
@@ -66,6 +64,6 @@ export async function GET() {
       avatarUrl: meta.avatar_url ?? null,
       plan,
       locale,
-    },
+    }
   });
 }

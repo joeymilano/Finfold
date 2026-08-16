@@ -1,7 +1,8 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { getAuthCallbackUrl } from "@/lib/auth-callback-url";
 
 /**
  * POST /api/auth/email
@@ -13,6 +14,9 @@ import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
  * Expected body: { email: string }
  */
 export async function POST(request: Request) {
+  const rateLimited = enforceApiRateLimit(request, { scope: "auth:email", limit: 5, windowMs: 60 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -53,11 +57,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-
   const { error } = await supabase.auth.updateUser(
     { email },
-    { emailRedirectTo: `${appUrl}/auth/callback` }
+    { emailRedirectTo: getAuthCallbackUrl(request) }
   );
 
   if (error) {

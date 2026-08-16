@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { LogIn, LogOut, User } from "lucide-react";
+import { LogIn, LogOut, User } from "@/components/ui/icons";
 import { useLocale } from "@/hooks/useLocale";
 
 type UserState = { email: string } | null;
@@ -89,7 +89,7 @@ export function UserMenu() {
     return (
       <Link
         href="/login"
-        className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 text-xs font-semibold text-fg-muted transition-colors hover:border-brand/50 hover:text-fg"
+        className="focus-ring inline-flex h-9 items-center gap-1.5 rounded-lg border border-hairline bg-surface px-2.5 text-xs font-semibold text-fg-muted transition-colors hover:border-action/50 hover:text-fg"
       >
         <LogIn className="h-3.5 w-3.5" />
         {locale === "en" ? "Log in" : "登录"}

@@ -1,160 +1,1134 @@
-export const runtime = "edge";
 
-import { NextResponse } from "next/server";
-import { generateRequestSchema, type ContentKit, type KitOutput } from "@/lib/content-schema";
+import { z } from "zod";
+import { generateRequestSchema, type ContentKit } from "@/lib/content-schema";
+import { getTerminalGenerationAllowance } from "@/lib/generation-allowance";
 import { generateKitOutputs } from "@/lib/llm";
 import { moderateInput } from "@/lib/moderation";
-import { saveMockKit } from "@/lib/mock-store";
-import { getActiveSubscription, isPaidPlan, isSubscriptionCurrentlyActive } from "@/lib/payment/entitlements";
-import { PLAN_MONTHLY_LIMITS } from "@/lib/payment";
+import { persistGeneratedKit } from "@/lib/kit-persistence";
+import { contentInputFingerprint } from "@/lib/content-fingerprint";
+import { buildTextFreeVisualPrompt, generateImage, isImageGenConfigured } from "@/lib/image-gen";
+import { persistGeneratedImageBytes } from "@/lib/image-persistence";
+import { createAiUsageBilling } from "@/lib/payment/ai-usage-billing";
+import { getActiveSubscription, getPlanModelTier, getPlanPlatformLimit, resolveEffectivePlan } from "@/lib/payment/entitlements";
+import { ACTION_CREDITS, PLAN_CREDITS, computeKitCost, ensurePlanCredits, getAvailableCredits, refundCredits, reserveCredits, type ModelTier, type PlanId } from "@/lib/payment";
 import { createSupabaseAdminClient, createSupabaseServerClient, getCurrentUserId, hasSupabaseConfig } from "@/lib/supabase";
 import { createLettaAgent, getLettaAgent, isLettaConfigured } from "@/lib/letta";
-import { isImageGenConfigured } from "@/lib/image-gen";
+import { encodeSSE, SSE_HEADERS } from "@/lib/sse";
+import { industryPackIdSchema, type IndustryPackId } from "@/lib/industry-rules/types";
+import { isLocalMockMode, persistenceUnavailableMessage } from "@/lib/runtime-mode";
+import { completeReferralForKit } from "@/lib/referrals";
+import { getGrowthMission, type GrowthMission } from "@/lib/agent/growth-missions";
+import { loadXhsGenerationContext } from "@/lib/agent/xhs-workflow";
+import {
+  attachAgentContentWorkflowGenerationRun,
+  claimAgentContentWorkflowGeneration,
+  loadAgentContentWorkflowGenerationContext,
+  releaseAgentContentWorkflowGeneration
+} from "@/lib/agent/content-workflow";
+import {
+  logError,
+  logInfo,
+  logWarn,
+  resolveRequestId,
+  type TelemetryContext
+} from "@/lib/observability";
+import {
+  advanceGenerationRun,
+  assertGenerationRunLease,
+  claimGenerationRun,
+  classifyGenerationFailure,
+  completeGenerationRun,
+  failGenerationRun,
+  GenerationRunError,
+  hashGenerationRequest,
+  reserveGenerationRunCredits,
+  resolveGenerationRequestId,
+  toPublicGenerationRun,
+  type GenerationRunRecord,
+  type GenerationRunStep
+} from "@/lib/generation-runs";
+import {
+  claimGenerationJob,
+  createQueuedGenerationRun,
+  finishGenerationJob,
+  heartbeatGenerationJob,
+  publishGenerationJob,
+  recordGenerationAttemptModel,
+  retryGenerationJob,
+  type GenerationJobRecord
+} from "@/lib/generation-jobs";
+import { verifyInternalWorkerRequest } from "@/lib/internal-worker-auth";
+import {
+  applyStagingPartialPlatformFailure,
+  generationJobLeaseSecondsForFaultMode,
+  getStagingGenerationFaultMode,
+  injectStagingConsumerInterruptionAfterClaim,
+  injectStagingFaultBeforeProvider,
+  StagingConsumerInterruption,
+  type StagingGenerationFaultMode
+} from "@/lib/staging-fault-injection";
 
+/**
+ * Streams the kit as Server-Sent Events instead of buffering the whole
+ * response: each platform's text arrives as soon as it's generated (Letta
+ * batches 2 platforms per request — see lib/llm.ts), and a final "done" event carries the
+ * persisted kit + allowance. Trial/local-mock generation still streams
+ * foreground output. Authenticated
+ * production requests create a durable job and return after Queue publication;
+ * the same route is invoked by the private Queue consumer to execute the job.
+ */
 export async function POST(request: Request) {
-  try {
-    const userId = await getCurrentUserId();
-    const body = await request.json();
-    const input = generateRequestSchema.parse(body);
+  const httpRequestId = resolveRequestId(request.headers.get("x-request-id"));
+  const requestStartedAt = Date.now();
+  // Tracks an in-flight credit reservation so the catch block can refund it
+  // if generation fails after billing (§10.3 — failure must never cost credits).
+  let reservation: { userId: string; cost: number } | null = null;
+  let creditsRefunded = false;
+  let generationRequestId: string | null = null;
+  let telemetryUserId: string | null = null;
+  let runContext: {
+    admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
+    run: GenerationRunRecord;
+  } | null = null;
+  let jobContext: {
+    job: GenerationJobRecord;
+    leaseToken: string;
+    queueAttempt: number;
+  } | null = null;
+  let stagingFaultMode: StagingGenerationFaultMode | null = null;
+  const internalExecution =
+    request.headers.has("x-finfold-queue-attempt");
+  const telemetryContext = (): TelemetryContext => ({
+    requestId: generationRequestId ?? httpRequestId,
+    traceId: runContext?.run.trace_id ?? httpRequestId,
+    generationRunId: runContext?.run.id ?? null,
+    userId: telemetryUserId
+  });
 
-    const quota = await getUsageAllowance(userId);
-    if (quota.used >= quota.limit) {
-      return NextResponse.json(
-        {
-          error: "本月已用完 · 升级继续使用 — Monthly free limit reached. Upgrade to keep generating content kits."
-        },
-        { status: 402 }
-      );
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      function emit(event: string, data: unknown) {
+        if (internalExecution && event !== "worker") return;
+        controller.enqueue(encodeSSE(event, data));
+      }
+
+      let agentContentWorkflowGeneration: {
+        workflowId: string;
+        requestId: string;
+        userId: string;
+        admin: NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
+      } | null = null;
+      try {
+        const persistenceAdmin = createSupabaseAdminClient();
+        let userId: string;
+        let input: z.infer<typeof generateRequestSchema>;
+        let requestId: string;
+        let growthMission: GrowthMission | null = null;
+        let xhsWorkflowContext: Awaited<ReturnType<typeof loadXhsGenerationContext>> | null = null;
+
+        if (internalExecution) {
+          if (!(await verifyInternalWorkerRequest(request))) {
+            emit("worker", {
+              status: "failed",
+              retryable: false,
+              error: "Forbidden internal generation request."
+            });
+            return;
+          }
+          if (!persistenceAdmin) {
+            emit("worker", {
+              status: "retry",
+              retryable: true,
+              error: "Generation persistence is unavailable."
+            });
+            return;
+          }
+          stagingFaultMode = getStagingGenerationFaultMode();
+          const claim = await claimGenerationJob(
+            persistenceAdmin,
+            await request.json(),
+            {
+              leaseSeconds: generationJobLeaseSecondsForFaultMode(
+                stagingFaultMode
+              )
+            }
+          );
+          if (claim.outcome !== "claimed") {
+            if (claim.outcome === "reconciled") {
+              // A prior invocation already persisted this run's content kit
+              // and died before the terminal write. claim_generation_job
+              // finalized it as succeeded instead of re-running (and
+              // re-billing) generation — nothing left to do here.
+              emit("worker", {
+                status: "succeeded",
+                retryable: false,
+                contentKitId: claim.contentKitId
+              });
+            } else if (claim.outcome === "terminal") {
+              emit("worker", {
+                status: "terminal",
+                terminalStatus: claim.status,
+                retryable: false
+              });
+            } else {
+              emit("worker", {
+                status: claim.outcome === "busy" ? "busy" : "terminal",
+                retryable: false
+              });
+            }
+            return;
+          }
+
+          userId = claim.run.user_id;
+          input = generateRequestSchema.parse(claim.job.payload);
+          requestId = claim.run.request_id;
+          runContext = { admin: persistenceAdmin, run: claim.run };
+          jobContext = {
+            job: claim.job,
+            leaseToken: claim.leaseToken,
+            // Database attempts survive outbox republishing, whereas a new
+            // Cloudflare Queue message starts its delivery counter at one.
+            // Retry exhaustion must therefore use the durable attempt number.
+            queueAttempt: claim.attemptNumber
+          };
+          // This fault must happen before the first heartbeat extends the
+          // deliberately short staging lease back to the normal 15 minutes.
+          injectStagingConsumerInterruptionAfterClaim(
+            stagingFaultMode,
+            jobContext.queueAttempt
+          );
+          if (
+            stagingFaultMode === "consumer_interruption_once" &&
+            jobContext.queueAttempt > 1
+          ) {
+            // The recovery claim starts with the same five-second test lease.
+            // Extend it immediately so a healthy provider call on attempt 2
+            // uses the normal production-length lease.
+            await heartbeatGenerationJob(persistenceAdmin, {
+              jobId: jobContext.job.id,
+              runId: claim.run.id,
+              leaseToken: jobContext.leaseToken,
+              step: claim.run.current_step
+            });
+          }
+        } else {
+          userId = await getCurrentUserId();
+          input = generateRequestSchema.parse(await request.json());
+          requestId = resolveGenerationRequestId(
+            request.headers.get("Idempotency-Key")
+          );
+
+          if (input.agentContentWorkflowId) {
+            if (!persistenceAdmin) {
+              throw new GenerationRunError({
+                code: "invalid_context",
+                message: "Agent content workflow validation is unavailable in this environment.",
+                retryable: true
+              });
+            }
+            const workflowContext = await claimAgentContentWorkflowGeneration(
+              persistenceAdmin,
+              userId,
+              input.agentContentWorkflowId,
+              requestId
+            );
+            input = generateRequestSchema.parse(workflowContext.generationRequest);
+            agentContentWorkflowGeneration = {
+              workflowId: workflowContext.workflow.id,
+              requestId,
+              userId,
+              admin: persistenceAdmin
+            };
+          }
+
+          // ---- Content dedup pre-check -------------------------------------
+          // Before committing to a (chargeable) generation, check whether this
+          // user already generated the exact same configuration. We only emit
+          // a soft "duplicate" event — the client decides whether to open the
+          // existing kit or force a fresh generation (x-finfold-force-regenerate
+          // header). Skipped for internal queue workers and Agent-driven
+          // workflows, which carry their own idempotency. The lookup is
+          // fail-safe: if the input_fingerprint column is missing (migration
+          // not yet applied) the query resolves to null and generation simply
+          // proceeds, so a deploy ordering mistake can never block generation.
+          const isServerDrivenGeneration =
+            internalExecution || !!input.agentContentWorkflowId;
+          const forceRegenerate =
+            request.headers.get("x-finfold-force-regenerate") === "1";
+          if (persistenceAdmin && !isServerDrivenGeneration && !forceRegenerate) {
+            const duplicateFingerprint = await contentInputFingerprint({
+              ideaText: input.ideaText,
+              goal: input.goal,
+              persona: input.persona,
+              platforms: input.platforms,
+              language: input.language
+            });
+            const { data: existingKit } = await persistenceAdmin
+              .from("content_kits")
+              .select("id, created_at, persona, platforms")
+              .eq("user_id", userId)
+              .eq("input_fingerprint", duplicateFingerprint)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            if (existingKit) {
+              logInfo("generation_duplicate_detected", telemetryContext(), {
+                existing_kit_id: existingKit.id,
+                platform_count: input.platforms.length
+              });
+              emit("duplicate", {
+                contentKitId: existingKit.id,
+                createdAt: existingKit.created_at,
+                persona: existingKit.persona,
+                platforms: existingKit.platforms
+              });
+              return;
+            }
+          }
+
+          if (
+            persistenceAdmin &&
+            process.env.GENERATION_EXECUTION_MODE === "queue"
+          ) {
+            const claim = await createQueuedGenerationRun(persistenceAdmin, {
+              userId,
+              requestId,
+              requestFingerprint: await hashGenerationRequest(input),
+              platformCount: input.platforms.length,
+              payload: input
+            });
+
+            emit("run", {
+              run: toPublicGenerationRun(claim.run),
+              durable: true
+            });
+            if (claim.outcome !== "claimed") {
+              const conflict = claim.outcome === "conflict";
+              emit("error", {
+                error: conflict
+                  ? "This idempotency key was already used for different generation input."
+                  : claim.run.status === "succeeded" || claim.run.status === "partial_success"
+                    ? "This generation request already completed. Open the saved content kit instead of charging it again."
+                    : "This generation request is already being processed or has already finished.",
+                code: conflict
+                  ? "idempotency_conflict"
+                  : "duplicate_request",
+                generationRunId: claim.run.id,
+                contentKitId: claim.run.content_kit_id,
+                retryable: false
+              });
+              return;
+            }
+            if (!claim.job) {
+              throw new Error("Generation outbox row was not created.");
+            }
+            if (agentContentWorkflowGeneration) {
+              await attachAgentContentWorkflowGenerationRun(
+                persistenceAdmin,
+                userId,
+                agentContentWorkflowGeneration.workflowId,
+                agentContentWorkflowGeneration.requestId,
+                claim.run.id
+              );
+            }
+
+            let dispatchDelayed = false;
+            try {
+              await publishGenerationJob(persistenceAdmin, claim.job);
+            } catch (publishError) {
+              dispatchDelayed = true;
+              logWarn("generation_queue_publish_delayed", {
+                requestId,
+                traceId: claim.run.trace_id,
+                generationRunId: claim.run.id,
+                userId
+              }, {
+                http_request_id: httpRequestId,
+                error:
+                  publishError instanceof Error
+                    ? publishError.message
+                    : String(publishError)
+              });
+            }
+            emit("queued", {
+              generationRunId: claim.run.id,
+              dispatchDelayed
+            });
+            return;
+          }
+
+          if (persistenceAdmin) {
+            const claim = await claimGenerationRun(persistenceAdmin, {
+              userId,
+              requestId,
+              requestFingerprint: await hashGenerationRequest(input),
+              platformCount: input.platforms.length
+            });
+
+            if (claim.outcome !== "claimed") {
+              const conflict = claim.outcome === "conflict";
+              logWarn("generation_duplicate_request", {
+                requestId,
+                traceId: claim.run.trace_id,
+                generationRunId: claim.run.id,
+                userId
+              }, {
+                http_request_id: httpRequestId,
+                outcome: claim.outcome,
+                status: claim.run.status,
+                latency_ms: Date.now() - requestStartedAt
+              });
+              emit("run", {
+                run: toPublicGenerationRun(claim.run),
+                durable: true
+              });
+              emit("error", {
+                error: conflict
+                  ? "This idempotency key was already used for different generation input."
+                  : claim.run.status === "succeeded" || claim.run.status === "partial_success"
+                    ? "This generation request already completed. Open the saved content kit instead of charging it again."
+                    : "This generation request is already being processed or has already finished.",
+                code: conflict ? "idempotency_conflict" : "duplicate_request",
+                generationRunId: claim.run.id,
+                contentKitId: claim.run.content_kit_id,
+                retryable: false
+              });
+              return;
+            }
+
+            runContext = { admin: persistenceAdmin, run: claim.run };
+            if (agentContentWorkflowGeneration) {
+              await attachAgentContentWorkflowGenerationRun(
+                persistenceAdmin,
+                userId,
+                agentContentWorkflowGeneration.workflowId,
+                agentContentWorkflowGeneration.requestId,
+                claim.run.id
+              );
+            }
+            emit("run", {
+              run: toPublicGenerationRun(claim.run),
+              durable: true
+            });
+          } else if (isLocalMockMode()) {
+            emit("run", {
+              run: {
+                id: crypto.randomUUID(),
+                requestId,
+                traceId: crypto.randomUUID(),
+                status: "running",
+                currentStep: "validate_request"
+              },
+              durable: false
+            });
+          }
+        }
+
+        generationRequestId = requestId;
+        telemetryUserId = userId;
+
+        async function advanceDurableStep(
+          step: GenerationRunStep,
+          details?: { modelTier?: ModelTier; creditCost?: number }
+        ) {
+          if (!runContext) return;
+          await advanceGenerationRun(runContext.admin, {
+            runId: runContext.run.id,
+            userId,
+            leaseToken: runContext.run.lease_token,
+            step,
+            modelTier: details?.modelTier,
+            creditCost: details?.creditCost
+          });
+          if (jobContext) {
+            await heartbeatGenerationJob(runContext.admin, {
+              jobId: jobContext.job.id,
+              runId: runContext.run.id,
+              leaseToken: jobContext.leaseToken,
+              step
+            });
+          }
+        }
+
+        if (input.growthMissionId) {
+          if (!persistenceAdmin) {
+            throw new GenerationRunError({
+              code: "invalid_context",
+              message: "Growth Mission validation is unavailable in this environment.",
+              retryable: true
+            });
+          }
+          growthMission = await getGrowthMission(
+            persistenceAdmin,
+            userId,
+            input.growthMissionId
+          );
+          if (!growthMission || !["accepted", "draft_ready"].includes(growthMission.status)) {
+            throw new GenerationRunError({
+              code: "invalid_context",
+              message: "This Growth Mission is no longer active. Return to the Agent and start a new mission.",
+              retryable: false
+            });
+          }
+        }
+        if (input.xhsWorkflowId) {
+          if (!persistenceAdmin) {
+            throw new GenerationRunError({
+              code: "invalid_context",
+              message: "Xiaohongshu workflow validation is unavailable in this environment.",
+              retryable: true
+            });
+          }
+          xhsWorkflowContext = await loadXhsGenerationContext(
+            persistenceAdmin,
+            userId,
+            input.xhsWorkflowId,
+            input.artifactVersionIds ?? []
+          );
+        }
+        if (input.agentContentWorkflowId) {
+          if (!persistenceAdmin) {
+            throw new GenerationRunError({
+              code: "invalid_context",
+              message: "Agent content workflow validation is unavailable in this environment.",
+              retryable: true
+            });
+          }
+          const workflowContext = await loadAgentContentWorkflowGenerationContext(
+            persistenceAdmin,
+            userId,
+            input.agentContentWorkflowId,
+            {
+              requestId,
+              runId: runContext?.run.id
+            }
+          );
+          // The durable workflow is the source of truth after confirmation.
+          // Do not let browser-supplied fields drift from the approved request.
+          input = generateRequestSchema.parse(workflowContext.generationRequest);
+          agentContentWorkflowGeneration = {
+            workflowId: workflowContext.workflow.id,
+            requestId,
+            userId,
+            admin: persistenceAdmin
+          };
+        }
+
+        const { limit, plan, platformLimit, modelTier } = await getPlanLimit(userId);
+        logInfo("generation_started", telemetryContext(), {
+          http_request_id: httpRequestId,
+          plan,
+          model_tier: modelTier,
+          platform_count: input.platforms.length,
+          has_media: input.mediaAssets.length > 0
+        });
+
+        if (input.platforms.length > platformLimit) {
+          throw new GenerationRunError({
+            code: "plan_limit",
+            message: `你当前的套餐最多支持 ${platformLimit} 个平台，升级可解锁更多。(Your plan supports up to ${platformLimit} platforms — upgrade to unlock more.)`,
+            retryable: false
+          });
+        }
+
+        // standardImage (8 credits/platform) costs more than the entire
+        // multi-platform text kit itself (contentKitBase 15 + perPlatformCopy
+        // 3 × extra platforms). Free's allowance was sized for one full text
+        // proof cycle (see PLAN_CREDITS.free), not per-platform AI images —
+        // enforced server-side since the client toggle is not trustworthy.
+        if (plan === "free") {
+          input = { ...input, withImage: false };
+        }
+
+        // Credits model: make sure this cycle's plan allowance exists, then
+        // reserve EXACTLY what this generation will cost (contentKitBase + a
+        // per-platform fee), not a flat "1 kit". A null return means the
+        // balance is insufficient — nothing is deducted.
+        await ensurePlanCredits(userId, plan);
+        const cost = computeKitCost(input.platforms.length);
+        await advanceDurableStep("reserve_credits", { modelTier, creditCost: cost });
+        const creditDetail = {
+          platforms: input.platforms.length,
+          generationRunId: runContext?.run.id ?? null,
+          requestId
+        };
+        const reserved = runContext?.run.credits_reserved
+          ? await getAvailableCredits(userId)
+          : runContext
+            ? await reserveGenerationRunCredits(runContext.admin, {
+                runId: runContext.run.id,
+                userId,
+                leaseToken: runContext.run.lease_token,
+                amount: cost,
+                action: "contentKitBase",
+                source: "workbench",
+                detail: creditDetail
+              })
+            : await reserveCredits(
+                userId,
+                cost,
+                "contentKitBase",
+                "workbench",
+                creditDetail
+              );
+        if (reserved === null) {
+          throw new GenerationRunError({
+            code: "insufficient_credits",
+            message: "本月创作点数已用完 · 升级或购买补充包继续 — Out of AI Credits for this cycle. Upgrade or top up to keep generating.",
+            retryable: false
+          });
+        }
+        reservation = { userId, cost };
+
+        await advanceDurableStep("moderate_input");
+        const moderation = moderateInput(input.ideaText);
+        if (moderation.flagged) {
+          throw new GenerationRunError({
+            code: "moderation_rejected",
+            message: moderation.reason,
+            retryable: false
+          });
+        }
+
+        await advanceDurableStep("load_context");
+        const lettaAgentId = await resolveLettaAgentId(userId);
+
+        const perfAdmin = persistenceAdmin;
+
+        // Resolve the user's enabled industry compliance packs server-side
+        // (never trust client-sent pack ids) — same server-populated-only
+        // pattern as perfExamples above. See lib/industry-rules/.
+        const industryPackIds = perfAdmin ? await resolveEnabledIndustryPacks(perfAdmin, userId) : [];
+        const generationInput = {
+          ...input,
+          industryPackIds,
+          experimentContext: growthMission
+            ? {
+                platform: growthMission.platform,
+                hypothesis: growthMission.hypothesis,
+                primaryMetric: growthMission.primaryMetric,
+                primaryMetricKey: growthMission.primaryMetricKey,
+                baselineValue: growthMission.baselineValue,
+                targetValue: growthMission.targetValue,
+                variants: growthMission.variants.map((variant) => ({
+                  name: variant.name,
+                  angle: variant.angle,
+                  hookInstruction: variant.hookInstruction,
+                  format: variant.format
+                }))
+              }
+            : undefined,
+          xhsWorkflowContext: xhsWorkflowContext ?? undefined
+        };
+
+        // Assign each output's row id at generation time (rather than at
+        // insert time, as before) so the id streamed to the client via the
+        // "output"/"done" SSE events is the SAME id the row gets in
+        // kit_outputs — the client needs that id to address PUT
+        // /api/kits/[kitId]/outputs/[outputId] for edits. Mutating the
+        // object onOutput receives is safe: generateKitOutputs returns that
+        // same reference in its resolved array (see lib/llm.ts), so the id
+        // assigned here is the one that ends up in `outputs` below too.
+        await advanceDurableStep("generate_outputs");
+        if (jobContext) {
+          injectStagingFaultBeforeProvider(
+            stagingFaultMode,
+            jobContext.queueAttempt
+          );
+        }
+        const modelHeartbeat = jobContext && runContext
+          ? setInterval(() => {
+              void heartbeatGenerationJob(runContext!.admin, {
+                jobId: jobContext!.job.id,
+                runId: runContext!.run.id,
+                leaseToken: jobContext!.leaseToken,
+                step: "generate_outputs"
+              }).catch((heartbeatError) => {
+                console.error(
+                  "[generate] model-call heartbeat failed:",
+                  heartbeatError
+                );
+              });
+            }, 60_000)
+          : null;
+        let outputs: Awaited<ReturnType<typeof generateKitOutputs>>;
+        try {
+          outputs = await generateKitOutputs(generationInput, {
+            lettaAgentId: lettaAgentId ?? undefined,
+            modelTier,
+            telemetry: telemetryContext(),
+            onModelAttempt: jobContext && runContext
+              ? async (audit) => {
+                  try {
+                    await recordGenerationAttemptModel(runContext!.admin, {
+                      runId: runContext!.run.id,
+                      leaseToken: jobContext!.leaseToken,
+                      audit
+                    });
+                  } catch (auditError) {
+                    // The model response is already paid for. Do not repeat the
+                    // provider request solely because telemetry persistence had
+                    // a transient outage; the queue attempt terminal row still
+                    // records normalized success/failure and timings.
+                    console.error(
+                      "[generate] failed to persist model attempt audit:",
+                      auditError
+                    );
+                  }
+                }
+              : undefined,
+            onOutput: (output) => {
+              output.id = crypto.randomUUID();
+              emit("output", { output });
+            }
+          });
+          outputs = applyStagingPartialPlatformFailure(
+            stagingFaultMode,
+            outputs
+          );
+        } finally {
+          if (modelHeartbeat) clearInterval(modelHeartbeat);
+        }
+        const partialSuccess = outputs.length < input.platforms.length;
+
+        const inputFingerprint = await contentInputFingerprint({
+          ideaText: input.ideaText,
+          goal: input.goal,
+          persona: input.persona,
+          platforms: input.platforms,
+          language: input.language
+        });
+
+        const kit: ContentKit = {
+          id: crypto.randomUUID(),
+          growthMissionId: input.growthMissionId,
+          xhsWorkflowId: input.xhsWorkflowId,
+          artifactVersionIds: xhsWorkflowContext?.artifactVersionIds,
+          ideaText: input.ideaText,
+          goal: input.goal,
+          persona: input.persona,
+          platforms: input.platforms,
+          mediaAssets: input.mediaAssets,
+          // Cover Studio now starts from templates, licensed stock, or the
+          // user's own media. Image generation is an explicit action inside
+          // the studio, so generating a content kit never spends an image call.
+          outputs: outputs.map((output) => ({ ...output, locked: false, publishStatus: "draft" })),
+          status: "saved",
+          createdAt: new Date().toISOString()
+        };
+
+        if (runContext) {
+          await advanceDurableStep("persist_kit");
+          await assertGenerationRunLease(runContext.admin, {
+            runId: runContext.run.id,
+            userId,
+            leaseToken: runContext.run.lease_token
+          });
+        }
+        // Persist the text kit BEFORE image generation runs (previously
+        // this happened after). A Worker kill during image generation now
+        // reconciles through claim_generation_job's kit-exists check
+        // instead of re-running — and re-billing — the LLM call that
+        // already succeeded (see migration 073's incident notes: killed
+        // invocations were silently re-claimed and re-ran generation from
+        // scratch, one job reaching attempt_count = 21). A kill before
+        // images finish now just leaves that platform's kit without an
+        // image, which is free to recover from, unlike re-running
+        // generateKitOutputs.
+        await persistGeneratedKit(userId, kit, input.brandBrain, {
+          growthMissionId: input.growthMissionId,
+          xhsWorkflowId: input.xhsWorkflowId,
+          agentContentWorkflowId: input.agentContentWorkflowId,
+          xhsArtifactVersionIds: xhsWorkflowContext?.artifactVersionIds,
+          generationRunId: runContext?.run.id,
+          inputFingerprint
+        }, industryPackIds);
+        reservation = null;
+
+        // AI 配图（opt-in，input.withImage）：每平台一张底图，credits 与内容
+        // 完全分开结算——每张独立 reserve→generate→settle/refund，复用
+        // /api/image/generate 同款管线与 Workers AI 成本护栏。某张额度不足或
+        // 失败只跳过那张，不阻断内容、不多扣（image-gen.ts 内部也会释放
+        // Neurons）。文本已经落库，这里只对已持久化的 kit_outputs 行补写
+        // image_url。并行生成，时延≈最慢一张。
+        if (input.withImage && isImageGenConfigured()) {
+          await Promise.all(kit.outputs.map(async (output) => {
+            const billing = createAiUsageBilling({
+              operationKey: `image-generation:${userId}:${requestId}:${output.platform}`,
+              userId,
+              action: "standardImage",
+              cost: ACTION_CREDITS.standardImage,
+              source: "workbench_image",
+              detail: { requestId, platform: output.platform }
+            });
+            const imageReservation = await billing.reserveAndStart();
+            if (imageReservation.outcome !== "authorized") return; // 额度不足/重复：跳过这张
+            try {
+              const visualPrompt = buildTextFreeVisualPrompt(
+                input.ideaText.slice(0, 500),
+                output.platform
+              );
+              const imageOutcome = await generateImage(visualPrompt, "1024x1024");
+              let imageUrl: string;
+              if (imageOutcome.kind === "url") {
+                imageUrl = imageOutcome.url;
+              } else {
+                const persistedUrl = await persistGeneratedImageBytes(
+                  userId,
+                  imageOutcome.bytes,
+                  imageOutcome.contentType
+                );
+                if (!persistedUrl) throw new Error("Generated image could not be persisted.");
+                imageUrl = persistedUrl;
+              }
+              output.imageUrl = imageUrl;
+              if (output.id && persistenceAdmin) {
+                const { error: imageUpdateError } = await persistenceAdmin
+                  .from("kit_outputs")
+                  .update({ image_url: imageUrl })
+                  .eq("id", output.id)
+                  .eq("user_id", userId);
+                if (imageUpdateError) {
+                  console.error(
+                    "[generate] failed to persist image_url for",
+                    output.platform,
+                    JSON.stringify(imageUpdateError)
+                  );
+                }
+              }
+              await billing.settle();
+              emit("image", { platform: output.platform, imageUrl });
+            } catch (imageError) {
+              await billing.refund("workbench_image_failed").catch(() => undefined);
+              console.error(
+                `[generate] image generation skipped for ${output.platform}:`,
+                imageError instanceof Error ? imageError.message : imageError
+              );
+            }
+          }));
+        }
+
+        if (runContext) {
+          try {
+            // No advanceDurableStep("finalize") round-trip here on purpose:
+            // completeGenerationRun below already sets current_step to
+            // "finalize" itself, and every extra await here widens the
+            // window in which a killed invocation (Worker CPU limit) can
+            // leave a persisted kit with an unfinalized run.
+            await completeGenerationRun(runContext.admin, {
+              runId: runContext.run.id,
+              userId,
+              leaseToken: runContext.run.lease_token,
+              contentKitId: kit.id,
+              partialSuccess
+            });
+            if (jobContext) {
+              await finishGenerationJob(runContext.admin, {
+                jobId: jobContext.job.id,
+                runId: runContext.run.id,
+                leaseToken: jobContext.leaseToken,
+                status: partialSuccess ? "partial_success" : "succeeded",
+                failure: partialSuccess
+                  ? {
+                      code: "generation_failed",
+                      message:
+                        "Some requested platforms could not be generated; completed outputs were saved.",
+                      retryable: false
+                    }
+                  : undefined
+              });
+            }
+          } catch (runError) {
+            // The content kit is already durable and credits were consumed
+            // correctly. A tracking write outage must not turn that success
+            // into a false user-facing failure or an incorrect refund.
+            console.error(
+              "[generate] failed to finalize generation run:",
+              runError
+            );
+          }
+        }
+
+        // Referral activation is tied to the first kit that actually reached
+        // durable storage. The database RPC is idempotent, so later kits and
+        // concurrent requests become no-ops instead of double-granting.
+        let referralReward: Awaited<ReturnType<typeof completeReferralForKit>> = null;
+        try {
+          referralReward = await completeReferralForKit(userId, kit.id);
+        } catch (referralError) {
+          // Referral notifications are a post-persistence side effect. A
+          // mail/analytics outage must not hide a successfully generated kit.
+          console.error("[generate] referral completion failed:", referralError);
+        }
+
+        // 回采本次生成实际注入 prompt 的品牌上下文计数（P0-5：外化"越用越懂你"）。
+        // 计数直接取自 buildBrainPromptSection 注入的字段，不得编造。
+        // rules 字段额外回传实际命中的规则原文（同样直接取自 input.brandBrain，
+        // 零额外查询），用于溯源胶囊展示"这条规则来自你的哪次编辑/反馈"。
+        const brain = input.brandBrain;
+        const usedContext = {
+          hasBrand: Boolean(brain?.brandName || brain?.productDescription),
+          toneKeywords: brain?.toneKeywords?.length ?? 0,
+          bannedPhrases: brain?.bannedPhrases?.length ?? 0,
+          approvedExamples: brain?.approvedExamples?.length ?? 0,
+          learnedStyle: brain?.learnedStyle?.length ?? 0,
+          learnedNegative: brain?.learnedNegative?.length ?? 0,
+          performanceRules: brain?.performanceRules?.length ?? 0,
+          customRules: generationInput.customRules?.length ?? 0,
+          perfExamples: Object.values(generationInput.perfExamples ?? {}).reduce((sum, arr) => sum + (arr?.length ?? 0), 0),
+          industryPacks: industryPackIds.length,
+          rules: {
+            learnedStyle: brain?.learnedStyle ?? [],
+            learnedNegative: brain?.learnedNegative ?? [],
+            performanceRules: brain?.performanceRules ?? []
+          }
+        };
+
+        // Both Credits values must come from successful authoritative reads.
+        // A missing allowance is safer than turning a transient query failure
+        // into a believable 0/0 balance in the terminal SSE payload.
+        const allowance = await getTerminalGenerationAllowance(userId, {
+          limit,
+          plan,
+          costThisRun: cost
+        });
+        logInfo("generation_completed", telemetryContext(), {
+          http_request_id: httpRequestId,
+          plan,
+          model_tier: modelTier,
+          platform_count: input.platforms.length,
+          output_count: kit.outputs.length,
+          credit_cost: cost,
+          latency_ms: Date.now() - requestStartedAt
+        });
+        if (internalExecution) {
+          emit("worker", {
+            status: partialSuccess ? "partial_success" : "succeeded",
+            retryable: false,
+            contentKitId: kit.id
+          });
+        }
+        emit("done", {
+          kit,
+          generationRun: runContext
+            ? {
+                id: runContext.run.id,
+                requestId: runContext.run.request_id,
+                traceId: runContext.run.trace_id,
+                status: partialSuccess ? "partial_success" : "succeeded",
+                currentStep: "finalize",
+                contentKitId: kit.id
+              }
+            : null,
+          ...(allowance === undefined ? {} : { allowance }),
+          usedContext,
+          referralReward: referralReward?.completed
+            ? {
+                granted: true,
+                credits: referralReward.referred_credits ?? 100,
+                expiresAt: referralReward.expires_at ?? null
+              }
+            : null
+        });
+      } catch (error) {
+        if (
+          error instanceof StagingConsumerInterruption &&
+          runContext &&
+          jobContext
+        ) {
+          logWarn("staging_generation_consumer_interrupted", telemetryContext(), {
+            queue_attempt: jobContext.queueAttempt,
+            lease_expires_at: jobContext.job.lease_expires_at
+          });
+          // Do not release or transition the database lease. The Queue retry
+          // will arrive after the five-second staging lease expires and must
+          // reclaim the same durable job, proving interruption recovery.
+          emit("worker", {
+            status: "retry",
+            retryable: true,
+            error: error.message
+          });
+          return;
+        }
+        const failure = classifyGenerationFailure(error);
+        if (
+          runContext &&
+          jobContext &&
+          failure.retryable &&
+          jobContext.queueAttempt < 5
+        ) {
+          try {
+            await retryGenerationJob(runContext.admin, {
+              jobId: jobContext.job.id,
+              runId: runContext.run.id,
+              leaseToken: jobContext.leaseToken,
+              failure,
+              delaySeconds: Math.min(
+                30 * 2 ** Math.max(jobContext.queueAttempt - 1, 0),
+                900
+              )
+            });
+            logWarn("generation_retry_scheduled", telemetryContext(), {
+              error_code: failure.code,
+              queue_attempt: jobContext.queueAttempt,
+              latency_ms: Date.now() - requestStartedAt
+            });
+            emit("worker", {
+              status: "retry",
+              retryable: true,
+              error: failure.message
+            });
+            return;
+          } catch (retryError) {
+            console.error(
+              "[generate] failed to schedule durable retry:",
+              retryError
+            );
+          }
+        }
+
+        let reconciledSuccess = false;
+        if (runContext) {
+          try {
+            const result = await failGenerationRun(runContext.admin, {
+              runId: runContext.run.id,
+              userId: runContext.run.user_id,
+              leaseToken: runContext.run.lease_token,
+              failure
+            });
+            creditsRefunded = result.creditsRefunded;
+            reconciledSuccess = result.outcome === "succeeded";
+            if (jobContext) {
+              await finishGenerationJob(runContext.admin, {
+                jobId: jobContext.job.id,
+                runId: runContext.run.id,
+                leaseToken: jobContext.leaseToken,
+                status: reconciledSuccess ? "succeeded" : "failed",
+                failure: reconciledSuccess ? undefined : failure
+              });
+            }
+          } catch (runError) {
+            console.error(
+              "[generate] failed to persist generation failure:",
+              runError
+            );
+          }
+        } else if (reservation) {
+          await refundCredits(reservation.userId, reservation.cost, "refund", {
+            reason: "generation_failed",
+            generationRunId: null,
+            requestId: null
+          });
+          creditsRefunded = true;
+        }
+        if (agentContentWorkflowGeneration && !reconciledSuccess) {
+          try {
+            await releaseAgentContentWorkflowGeneration(
+              agentContentWorkflowGeneration.admin,
+              agentContentWorkflowGeneration.userId,
+              agentContentWorkflowGeneration.workflowId,
+              agentContentWorkflowGeneration.requestId
+            );
+          } catch (workflowError) {
+            console.error("[generate] failed to release Agent content workflow after terminal failure:", workflowError);
+          }
+        }
+
+        logError("generation_failed", telemetryContext(), {
+          http_request_id: httpRequestId,
+          error_code: failure.code,
+          retryable: failure.retryable,
+          credits_refunded: creditsRefunded,
+          latency_ms: Date.now() - requestStartedAt
+        });
+        if (internalExecution) {
+          emit("worker", {
+            status: reconciledSuccess ? "terminal" : "failed",
+            retryable: false,
+            error: reconciledSuccess ? undefined : failure.message,
+            creditsRefunded
+          });
+        }
+        emit("error", {
+          error: failure.message,
+          code: failure.code,
+          retryable: failure.retryable,
+          generationRunId: runContext?.run.id ?? null,
+          traceId: runContext?.run.trace_id ?? null,
+          creditsRefunded
+        });
+      } finally {
+        controller.close();
+      }
     }
+  });
 
-    const moderation = moderateInput(input.ideaText);
-    if (moderation.flagged) {
-      return NextResponse.json({ error: moderation.reason }, { status: 422 });
-    }
-
-    // Resolve the user's Letta agent ID (if Letta is configured)
-    const lettaAgentId = await resolveLettaAgentId(userId);
-
-    const outputs = await generateKitOutputs(input, lettaAgentId ?? undefined);
-
-    // ── Generate cover images for each output ──────────────────────
-    const outputsWithImages = await enrichWithImages(outputs, input.ideaText);
-
-    const kit: ContentKit = {
-      id: crypto.randomUUID(),
-      ideaText: input.ideaText,
-      goal: input.goal,
-      persona: input.persona,
-      platforms: input.platforms,
-      mediaAssets: input.mediaAssets,
-      outputs: outputsWithImages.map((output) => ({ ...output, locked: false, publishStatus: "draft" })),
-      status: "saved",
-      createdAt: new Date().toISOString()
-    };
-
-    await persistKit(userId, kit);
-    return NextResponse.json({ kit, allowance: { ...quota, used: quota.used + 1 } });
-  } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Please log in to generate content kits." }, { status: 401 });
-    }
-
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to generate content kit." },
-      { status: 400 }
-    );
-  }
+  return new Response(stream, { headers: SSE_HEADERS });
 }
 
-async function getUsageAllowance(userId: string): Promise<{ used: number; limit: number; plan: string }> {
+async function getPlanLimit(userId: string): Promise<{ limit: number; plan: PlanId | "free"; platformLimit: number; modelTier: ModelTier }> {
   if (!hasSupabaseConfig()) {
-    return { used: 0, limit: 5, plan: "local" };
+    if (isLocalMockMode()) return { limit: 1500, plan: "free", platformLimit: 13, modelTier: "haiku" };
+    throw new Error(persistenceUnavailableMessage("Plan enforcement"));
   }
 
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return { used: 0, limit: 5, plan: "local" };
+    if (isLocalMockMode()) return { limit: 1500, plan: "free", platformLimit: 13, modelTier: "haiku" };
+    throw new Error(persistenceUnavailableMessage("Plan enforcement"));
   }
 
-  const monthStart = new Date();
-  monthStart.setUTCDate(1);
-  monthStart.setUTCHours(0, 0, 0, 0);
-
-  const [{ data: profile }, { data: subscriptions }, { count }] = await Promise.all([
-    supabase.from("profiles").select("plan, monthly_limit").eq("id", userId).maybeSingle(),
+  const [{ data: profile }, { data: subscriptions }] = await Promise.all([
+    supabase.from("profiles").select("plan").eq("id", userId).maybeSingle(),
     supabase
       .from("subscriptions")
       .select("status, current_period_end")
       .eq("user_id", userId)
       .eq("payment_provider", "creem")
-      .order("updated_at", { ascending: false }),
-    supabase
-      .from("content_kits")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .gte("created_at", monthStart.toISOString())
+      .order("updated_at", { ascending: false })
   ]);
 
-  const plan = String(profile?.plan ?? "free");
   const activeSubscription = getActiveSubscription(
     (subscriptions ?? []).map((subscription) => ({
       status: String(subscription.status ?? ""),
       currentPeriodEnd: subscription.current_period_end
     }))
   );
-  const hasPaidAllowance = isPaidPlan(plan) && isSubscriptionCurrentlyActive(activeSubscription);
+  const effectivePlan = resolveEffectivePlan(profile?.plan, activeSubscription);
 
   return {
-    used: count ?? 0,
-    limit: hasPaidAllowance ? Number(profile?.monthly_limit ?? PLAN_MONTHLY_LIMITS.free) : PLAN_MONTHLY_LIMITS.free,
-    plan: hasPaidAllowance ? plan : "free"
+    // Credits allowance for the cycle — the new primary billing unit.
+    // The legacy profiles.monthly_limit (kit count) is intentionally ignored.
+    limit: PLAN_CREDITS[effectivePlan],
+    plan: effectivePlan,
+    platformLimit: getPlanPlatformLimit(effectivePlan),
+    modelTier: getPlanModelTier(effectivePlan)
   };
 }
 
-async function persistKit(userId: string, kit: ContentKit) {
-  saveMockKit(kit);
-
-  const supabase = createSupabaseAdminClient();
-  if (!supabase) {
-    return;
+/**
+ * Reads which industry compliance packs (medical/legal/advertising/finance —
+ * see lib/industry-rules/) this user has opted into. Resolved server-side so
+ * a client can't spoof or drop compliance rules by editing the request body.
+ * Fails open to no packs so a lookup error degrades to today's behavior
+ * (no industry section) instead of blocking generation.
+ */
+async function resolveEnabledIndustryPacks(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  userId: string
+): Promise<IndustryPackId[]> {
+  try {
+    const { data, error } = await supabase
+      .from("custom_guardrails")
+      .select("enabled_packs")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    return z.array(industryPackIdSchema).catch([]).parse(data?.enabled_packs ?? []);
+  } catch (error) {
+    console.error("[generate] resolveEnabledIndustryPacks failed:", error);
+    return [];
   }
-
-  await supabase.from("content_kits").insert({
-    id: kit.id,
-    user_id: userId,
-    idea_text: kit.ideaText,
-    goal: kit.goal,
-    persona: kit.persona,
-    platforms: kit.platforms,
-    media_assets: kit.mediaAssets,
-    status: kit.status,
-    created_at: kit.createdAt
-  });
-
-  await supabase.from("kit_outputs").insert(
-    kit.outputs.map((output) => ({
-      id: crypto.randomUUID(),
-      kit_id: kit.id,
-      user_id: userId,
-      platform: output.platform,
-      title: output.title,
-      body: output.body,
-      cta: output.cta,
-      notes: output.notes,
-      strategy: output.strategy,
-      locked: output.locked ?? false,
-      publish_status: output.publishStatus ?? "draft",
-      image_url: output.imageUrl || null,
-      image_prompt: output.imagePrompt || null
-    }))
-  );
-
-  await supabase.from("usage_events").insert({
-    id: crypto.randomUUID(),
-    user_id: userId,
-    event_name: "kit_generated",
-    metadata: { kitId: kit.id, platformCount: kit.platforms.length }
-  });
 }
 
 /**
@@ -234,68 +1208,4 @@ async function resolveLettaAgentId(userId: string): Promise<string | null> {
     // Letta unavailable — return null so generateKitOutputs skips Letta path
     return null;
   }
-}
-
-/**
- * Enrich content kit outputs with AI-generated cover images.
- *
- * For each output that has an `imagePrompt` (generated by the LLM),
- * call the image generation API to produce a cover image.
- * If image generation is not configured or fails, the output is
- * returned without an image (graceful degradation).
- */
-async function enrichWithImages(
-  outputs: KitOutput[],
-  ideaText: string
-): Promise<KitOutput[]> {
-  if (!isImageGenConfigured()) {
-    return outputs;
-  }
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-  // Generate images in parallel (max 3 concurrent)
-  const BATCH_SIZE = 3;
-  const results: KitOutput[] = [];
-
-  for (let i = 0; i < outputs.length; i += BATCH_SIZE) {
-    const batch = outputs.slice(i, i + BATCH_SIZE);
-    const enriched = await Promise.allSettled(
-      batch.map(async (output) => {
-        // Use the LLM-generated imagePrompt, or fall back to a prompt
-        // derived from the output title and ideaText
-        const prompt = output.imagePrompt || `${output.title}. ${ideaText}. Professional social media cover image, eye-catching, modern design.`;
-
-        try {
-          const res = await fetch(`${baseUrl}/api/image/generate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt, platform: output.platform }),
-          });
-
-          if (!res.ok) {
-            console.warn(`[generate] Image generation failed for ${output.platform}: ${res.status}`);
-            return output;
-          }
-
-          const data = (await res.json()) as { url?: string; error?: string };
-          if (data.url) {
-            return { ...output, imageUrl: data.url, imagePrompt: prompt };
-          }
-          return output;
-        } catch (error) {
-          console.warn(`[generate] Image generation error for ${output.platform}:`, error instanceof Error ? error.message : String(error));
-          return output;
-        }
-      })
-    );
-
-    for (const r of enriched) {
-      if (r.status === "fulfilled") {
-        results.push(r.value);
-      }
-    }
-  }
-
-  return results;
 }

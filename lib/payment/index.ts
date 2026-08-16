@@ -5,9 +5,48 @@ import { creemProvider } from "./creem";
 import { wechatPayProvider } from "./wechat-pay";
 import { alipayProvider } from "./alipay";
 
-export { type PlanId, type PaymentProviderId, type Region, PLAN_MONTHLY_LIMITS } from "./types";
-export type { CreateCheckoutParams, CheckoutResult, PaymentProvider } from "./types";
+export {
+  type PlanId,
+  type PaymentProviderId,
+  type Region,
+  type ModelTier,
+  type ActionKey,
+  type CreditSpendSummary,
+  PLAN_MONTHLY_LIMITS,
+  PLAN_PLATFORM_LIMITS,
+  PLAN_MODEL_TIER,
+  PLAN_FEATURES,
+  PLAN_CREDITS,
+  ACTION_CREDITS,
+  CREDITS_PER_KIT,
+  computeKitCost
+} from "./types";
+export type { CreateCheckoutParams, CheckoutResult, PaymentProvider, PlanFeatures } from "./types";
 export { VALID_PLANS } from "./constants";
+export {
+  currentPeriodKey,
+  ensurePlanCredits,
+  getAvailableCredits,
+  getCreditAllowanceSnapshot,
+  getCreditSpendSummary,
+  getPlanBatchUsed,
+  periodKeyExpiry,
+  periodKeyStart,
+  refundCredits,
+  reserveCredits,
+  type CreditAllowanceSnapshot,
+  type CreditReservation
+} from "./credits";
+export {
+  reserveAiUsageOperation,
+  startAiUsageOperation,
+  settleAiUsageOperation,
+  refundAiUsageOperation,
+  recoverStaleAiUsageOperations,
+  type AiUsageOperationStatus,
+  type ReserveAiUsageOperationInput,
+  type ReserveAiUsageOperationResult
+} from "./ai-usage-operations";
 
 const providers: Record<PaymentProviderId, PaymentProvider> = {
   creem: creemProvider,
@@ -30,7 +69,7 @@ export function getProviderForRegion(region: Region): PaymentProvider {
 
 /**
  * Detect the user's region from request headers.
- * Cloudflare Pages sets the CF-IPCountry header automatically.
+ * Cloudflare Workers sets the CF-IPCountry header automatically.
  * Falls back to Accept-Language heuristic.
  */
 export function detectRegion(request: Request): Region {

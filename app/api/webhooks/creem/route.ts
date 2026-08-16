@@ -1,10 +1,19 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { verifyHmacSHA256 } from "@/lib/payment/hmac";
 import { buildCreemSubscriptionUpsert, resolveCreemPlanId } from "@/lib/payment/creem-webhook";
+import { grantPlanFromSubscription } from "@/lib/payment/creem-subscription-grant";
 import { PLAN_MONTHLY_LIMITS } from "@/lib/payment/types";
 import { createSupabaseAdminClient } from "@/lib/supabase";
+import { captureServerEvent } from "@/lib/posthog-server";
+import { grantPurchaseCredits } from "@/lib/payment/credits";
+import { resolveCreditPackByProductId } from "@/lib/payment/creem";
+import {
+  claimWebhookEvent,
+  hashWebhookPayload,
+  markWebhookEventFailed,
+  markWebhookEventSucceeded
+} from "@/lib/payment/webhook-events";
 
 // ── Creem webhook event types ─────────────────────────────────
 // Full list: https://docs.creem.io/code/webhooks
@@ -51,8 +60,12 @@ export async function POST(request: Request) {
   const webhookSecret = process.env.CREEM_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    // Webhook not configured — acknowledge to prevent retries
-    return NextResponse.json({ received: true, configured: false });
+    // Never acknowledge a payment event that cannot be authenticated. A 503
+    // keeps the provider retrying while production configuration is repaired.
+    return NextResponse.json(
+      { error: "Webhook processing is temporarily unavailable." },
+      { status: 503, headers: { "Retry-After": "60" } }
+    );
   }
 
   // 1. Verify signature
@@ -78,7 +91,48 @@ export async function POST(request: Request) {
 
   const supabase = createSupabaseAdminClient();
   if (!supabase) {
-    return NextResponse.json({ received: true, db: false });
+    return NextResponse.json(
+      { error: "Webhook processing is temporarily unavailable." },
+      { status: 503, headers: { "Retry-After": "30" } }
+    );
+  }
+
+  if (!event.id) {
+    return NextResponse.json({ error: "Missing event id." }, { status: 400 });
+  }
+
+  let processingLease: string;
+  try {
+    const claim = await claimWebhookEvent(supabase, {
+      id: event.id,
+      eventType: event.eventType,
+      payloadHash: await hashWebhookPayload(payload)
+    });
+    if (claim.outcome === "duplicate") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    if (claim.outcome === "busy") {
+      return NextResponse.json(
+        { error: "Webhook event is already being processed." },
+        { status: 503, headers: { "Retry-After": "5" } }
+      );
+    }
+    if (claim.outcome === "conflict") {
+      console.error(
+        `[creem-webhook] event id ${event.id} was reused with different content`
+      );
+      return NextResponse.json(
+        { error: "Webhook event conflicts with an existing event." },
+        { status: 409 }
+      );
+    }
+    processingLease = claim.lease;
+  } catch (claimError) {
+    console.error(
+      "[creem-webhook] event claim failed:",
+      claimError
+    );
+    return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 
   try {
@@ -86,6 +140,20 @@ export async function POST(request: Request) {
       // ── Checkout completed ──────────────────────────────
       case "checkout.completed": {
         const checkout = event.object as CreemCheckout;
+
+        // Credit top-up? One-time pack purchases complete here (they carry no
+        // subscription, so they never reach subscription.paid). Fulfill the
+        // pending purchase by id BEFORE any customer linking — a top-up is
+        // not a subscription. Falls back to product-id matching if a hosted
+        // payment link dropped the metadata.type flag along the way.
+        const isCreditTopup =
+          checkout.metadata?.type === "credits" ||
+          Boolean(resolveCreditPackByProductId(checkout.product?.id));
+        if (isCreditTopup && checkout.metadata?.purchase_id) {
+          await fulfillCreditPurchase(checkout);
+          break;
+        }
+
         const customerId = checkout.customer?.id;
         const userId = checkout.metadata?.user_id;
 
@@ -111,7 +179,18 @@ export async function POST(request: Request) {
         const userId = await upsertSubscription(supabase, sub, "active");
 
         if (userId) {
-          await grantPlanFromSubscription(supabase, userId, sub);
+          const planId = await grantPlanFromSubscription(supabase, userId, sub);
+          await captureServerEvent(userId, "checkout_completed", {
+            locale: sub.metadata?.market === "global" ? "en" : "zh",
+            market: sub.metadata?.market ?? "unknown",
+            currency: sub.metadata?.currency ?? "unknown",
+            plan_key: sub.metadata?.plan_key ?? planId,
+            entitlement_id: planId,
+            billing_period: "monthly",
+            price: Number(sub.metadata?.price ?? 0),
+            source_page: "billing",
+            is_existing_user: false
+          });
         }
         break;
       }
@@ -188,12 +267,31 @@ export async function POST(request: Request) {
         break;
       }
 
+      // ── Refund issued (close the self-service refund loop) ──
+      // Creem fires this after an operator issues the refund from the
+      // dashboard. Mark the user's pending refund request completed.
+      case "refund.created": {
+        const refund = event.object as unknown as {
+          subscription?: string;
+          subscription_id?: string;
+          order?: string;
+          order_id?: string;
+        };
+        await markRefundCompleted(supabase, {
+          subscriptionId: refund.subscription ?? refund.subscription_id,
+          orderId: refund.order ?? refund.order_id
+        });
+        break;
+      }
+
       default:
         // Acknowledge unhandled events to prevent retries
         break;
     }
+    await markWebhookEventSucceeded(supabase, event.id, processingLease);
   } catch (error) {
     console.error("Creem webhook processing error:", error);
+    await markWebhookEventFailed(supabase, event.id, processingLease, error);
     return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 
@@ -239,31 +337,6 @@ async function linkCreemCustomer(
   if (error) throw error;
 }
 
-async function grantPlanFromSubscription(
-  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
-  userId: string,
-  sub: CreemSubscription
-) {
-  const planId = resolveCreemPlanId({
-    productId: sub.product?.id,
-    metadataPlan: sub.metadata?.plan
-  });
-
-  if (!planId) {
-    throw new Error("Unable to resolve paid plan from Creem subscription.");
-  }
-
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      plan: planId,
-      monthly_limit: PLAN_MONTHLY_LIMITS[planId],
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", userId);
-  if (error) throw error;
-}
-
 async function upsertSubscription(
   supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
   sub: CreemSubscription,
@@ -276,27 +349,30 @@ async function upsertSubscription(
 
   // Look up user_id from existing subscription record by provider_customer_id
   let userId: string | null = null;
+  let existingSubscriptionRowId: string | null = null;
 
   if (customerId) {
     const { data: existing } = await supabase
       .from("subscriptions")
-      .select("user_id")
+      .select("id, user_id")
       .eq("payment_provider", "creem")
       .eq("provider_customer_id", customerId)
       .maybeSingle();
 
     userId = (existing?.user_id as string) ?? null;
+    existingSubscriptionRowId = (existing?.id as string) ?? null;
   }
 
   // Also check by provider_subscription_id
   if (!userId) {
     const { data: existing } = await supabase
       .from("subscriptions")
-      .select("user_id")
+      .select("id, user_id")
       .eq("provider_subscription_id", subscriptionId)
       .maybeSingle();
 
     userId = (existing?.user_id as string) ?? null;
+    existingSubscriptionRowId = (existing?.id as string) ?? null;
   }
 
   const { userId: resolvedUserId, data: upsertData } = buildCreemSubscriptionUpsert({
@@ -306,16 +382,111 @@ async function upsertSubscription(
     existingUserId: userId,
     metadataUserId: sub.metadata?.user_id,
     currentPeriodEnd: sub.current_period_end_date,
-    canceledAt: sub.canceled_at
+    canceledAt: sub.canceled_at,
+    entitlementId: resolveCreemPlanId({
+      productId: sub.product?.id,
+      metadataPlan: sub.metadata?.entitlement_id ?? sub.metadata?.plan
+    }),
+    market: sub.metadata?.market
   });
 
-  // Use provider_subscription_id as the conflict target
-  const { data: upserted, error } = await supabase
-    .from("subscriptions")
-    .upsert(upsertData, { onConflict: "provider_subscription_id" })
-    .select("user_id")
-    .maybeSingle();
+  // checkout.completed may already have created the user's one allowed
+  // provider row with a null subscription id. Update that row in place;
+  // inserting another row would violate idx_subscriptions_user_provider before
+  // the provider_subscription_id conflict target can make the write idempotent.
+  const write = existingSubscriptionRowId
+    ? supabase
+        .from("subscriptions")
+        .update(upsertData)
+        .eq("id", existingSubscriptionRowId)
+    : supabase
+        .from("subscriptions")
+        .upsert(upsertData, { onConflict: "provider_subscription_id" });
+  const { data: upserted, error } = await write.select("user_id").maybeSingle();
   if (error) throw error;
 
   return (upserted?.user_id as string) ?? resolvedUserId;
+}
+
+// ── Helper: mark a pending refund request completed on refund.created ──
+// The webhook payload's shape for refund events isn't documented as a
+// typed object, so we resolve the matching request by subscription id
+// first, then order id, then the owning user's single pending request.
+async function markRefundCompleted(
+  supabase: NonNullable<ReturnType<typeof createSupabaseAdminClient>>,
+  { subscriptionId, orderId }: { subscriptionId?: string; orderId?: string }
+) {
+  const now = new Date().toISOString();
+  const patch = {
+    status: "completed",
+    resolved_at: now,
+    updated_at: now
+  };
+
+  // 1. Direct match on the refunded subscription.
+  if (subscriptionId) {
+    const { error } = await supabase
+      .from("refund_requests")
+      .update(patch)
+      .eq("provider_subscription_id", subscriptionId)
+      .eq("status", "pending");
+    if (!error) return;
+  }
+
+  // 2. Resolve the owning user, then close their pending request.
+  let userId: string | null = null;
+
+  if (orderId) {
+    const { data: req } = await supabase
+      .from("refund_requests")
+      .select("user_id")
+      .eq("provider_order_id", orderId)
+      .eq("status", "pending")
+      .maybeSingle();
+    userId = (req?.user_id as string | undefined) ?? null;
+  } else if (subscriptionId) {
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("user_id")
+      .eq("provider_subscription_id", subscriptionId)
+      .maybeSingle();
+    userId = (sub?.user_id as string | undefined) ?? null;
+  }
+
+  if (userId) {
+    await supabase
+      .from("refund_requests")
+      .update(patch)
+      .eq("user_id", userId)
+      .eq("status", "pending");
+  }
+}
+
+// ── Helper: fulfill a paid credit top-up on checkout.completed ──────────
+// One-time pack purchases land in checkout.completed (no subscription). The
+// metadata carries the purchase_id we embedded at checkout-create time;
+// grant_purchase_credits (migration 045) atomically creates the long-lived
+// balance batch, writes the ledger tx, and flips the order pending → paid.
+// Returns null on unknown/non-pending ids without raising, so we just log —
+// acking the webhook lets Creem stop retrying instead of re-delivering it.
+async function fulfillCreditPurchase(checkout: CreemCheckout) {
+  const purchaseId = checkout.metadata?.purchase_id;
+  if (!purchaseId) {
+    console.error("[creem-webhook] credit top-up missing purchase_id in metadata");
+    return;
+  }
+
+  const balanceId = await grantPurchaseCredits(purchaseId, checkout.id);
+  if (!balanceId) {
+    console.error("[creem-webhook] credit purchase fulfillment returned null:", purchaseId);
+    return;
+  }
+
+  const userId = checkout.metadata?.user_id;
+  if (userId) {
+    await captureServerEvent(userId, "credits_purchased", {
+      purchase_id: purchaseId,
+      package_id: checkout.metadata?.package_id
+    });
+  }
 }

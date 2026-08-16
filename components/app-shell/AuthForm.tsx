@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "@/components/ui/icons";
 import { FishLogo } from "@/components/app-shell/FishLogo";
 import { brand } from "@/lib/brand";
 import { useLocale } from "@/hooks/useLocale";
+import { captureEvent, identifyAnalyticsUser } from "@/lib/posthog";
+import { localizeSignupError } from "@/lib/signup-error";
 
 type AuthFormProps = {
   mode: "login" | "signup";
@@ -28,16 +30,7 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   const isLogin = mode === "login";
-  const supabaseConfigured = Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  );
-
   async function signInWithGoogle() {
-    if (!supabaseConfigured) {
-      setStatus(locale === "en" ? "Auth system not configured. You can still generate a free preview in the Workbench." : "登录系统暂未配置。你仍可以在工作台生成一次免费预览。");
-      return;
-    }
-
     setIsLoading(true);
     setStatus(null);
 
@@ -76,11 +69,6 @@ export function AuthForm({ mode }: AuthFormProps) {
     setStatus(null);
 
     try {
-      if (!supabaseConfigured) {
-        setStatus(locale === "en" ? "Auth system not configured. You can still generate a free preview in the Workbench." : "登录系统暂未配置。你仍可以在工作台生成一次免费预览。");
-        return;
-      }
-
       // Route through backend API to keep secret key server-side
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/signup";
       const res = await fetch(endpoint, {
@@ -92,15 +80,28 @@ export function AuthForm({ mode }: AuthFormProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Action failed.");
+        throw new Error(
+          isLogin
+            ? data.error || "Action failed."
+            : localizeSignupError(data.code, locale, data.error || "Action failed."),
+        );
+      }
+
+      if (data.user?.id) {
+        identifyAnalyticsUser({ id: data.user.id, locale });
       }
 
       if (!isLogin && data.needsConfirmation) {
+        captureEvent("signup");
         setStatus(locale === "en" ? "Sign up successful! Check your inbox and click the confirmation link to log in." : "注册成功，请检查邮箱并点击确认链接后再登录。");
         return;
       }
 
-      router.push("/dashboard");
+      if (!isLogin) {
+        captureEvent("signup");
+      }
+
+      router.push("/workbench");
     } catch (error) {
       const msg = error instanceof Error ? error.message : (locale === "en" ? "Action failed, please retry." : "操作失败，请重试。");
       setStatus(msg);
@@ -112,8 +113,8 @@ export function AuthForm({ mode }: AuthFormProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
       <section className="panel w-full max-w-md p-7 shadow-raised">
-        <Link href="/dashboard" className="mb-8 flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg bg-brand shadow-glow-brand">
+        <Link href={locale === "en" ? "/en" : "/"} className="mb-8 flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-lg">
             <FishLogo variant="app-icon" className="h-11 w-11 object-cover" />
           </span>
           <span className="leading-none">
@@ -193,8 +194,8 @@ export function AuthForm({ mode }: AuthFormProps) {
             {isLogin ? (locale === "en" ? "Sign in" : "登录") : (locale === "en" ? "Sign up" : "注册")} <ArrowRight className="h-4 w-4" />
           </button>
 
-          <Link href="/dashboard" className="text-center text-sm font-semibold text-brand hover:text-brand-strong">
-            {locale === "en" ? "Try a free generation first" : "先体验一次免费生成"}
+          <Link href="/workbench" className="text-center text-sm font-semibold text-brand hover:text-brand-strong">
+            {locale === "en" ? "Preview the workbench first" : "先看看完整创作台"}
           </Link>
         </div>
 

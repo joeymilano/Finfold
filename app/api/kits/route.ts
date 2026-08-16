@@ -1,10 +1,9 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
-import type { ContentKit, KitOutput, MediaAsset } from "@/lib/content-schema";
-import { contentKitSchema } from "@/lib/content-schema";
-import { listMockKits, saveMockKit } from "@/lib/mock-store";
+import { listMockKits } from "@/lib/mock-store";
 import { createSupabaseAdminClient, getCurrentUserId } from "@/lib/supabase";
+import { isLocalMockMode, persistenceUnavailableMessage } from "@/lib/runtime-mode";
+import { attachVisualAssets, KIT_SELECT_FIELDS, LEGACY_KIT_SELECT_FIELDS, mapContentKitRow } from "@/lib/kit-record";
 
 export async function GET() {
   try {
@@ -12,31 +11,38 @@ export async function GET() {
     const supabase = createSupabaseAdminClient();
 
     if (!supabase) {
-      return NextResponse.json({ kits: listMockKits() });
+      if (isLocalMockMode()) return NextResponse.json({ kits: listMockKits() });
+      return NextResponse.json({ error: persistenceUnavailableMessage("Content history") }, { status: 503 });
     }
 
-    const { data: kits, error } = await supabase
+    const currentResult = await supabase
       .from("content_kits")
-      .select("id, idea_text, goal, persona, platforms, media_assets, status, created_at, kit_outputs(platform, title, body, cta, notes, strategy, locked, publish_status)")
+      .select(KIT_SELECT_FIELDS)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-
-    if (error) {
-      throw error;
+    let kits = currentResult.data as unknown[] | null;
+    let error = currentResult.error;
+    if (error && /xhs_workflow_id|xhs_artifact_version_ids|schema cache/i.test(error.message ?? "")) {
+      const legacyResult = await supabase
+        .from("content_kits")
+        .select(LEGACY_KIT_SELECT_FIELDS)
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      kits = legacyResult.data as unknown[] | null;
+      error = legacyResult.error;
     }
 
-    const mapped: ContentKit[] =
-      kits?.map((kit) => ({
-        id: String(kit.id),
-        ideaText: String(kit.idea_text),
-        goal: kit.goal,
-        persona: kit.persona,
-        platforms: kit.platforms,
-        mediaAssets: (kit.media_assets ?? []) as MediaAsset[],
-        outputs: ((kit.kit_outputs ?? []) as Array<KitOutput & { publish_status?: string }>).map((output) => ({ ...output, publishStatus: output.publishStatus ?? output.publish_status ?? "draft", locked: output.locked ?? false })),
-        status: kit.status ?? "saved",
-        createdAt: String(kit.created_at)
-      })) ?? [];
+    if (error) {
+      // Supabase errors are plain objects (not Error instances), so log the
+      // full detail here — otherwise the generic catch below swallows it.
+      console.error("[api/kits] Supabase query failed:", JSON.stringify(error));
+      throw new Error(`kits query failed: ${error.message ?? error.code ?? "unknown"}`);
+    }
+
+    const mapped = await attachVisualAssets(
+      supabase,
+      kits?.map((kit) => mapContentKitRow(kit as Parameters<typeof mapContentKitRow>[0])) ?? []
+    );
 
     return NextResponse.json({ kits: mapped });
   } catch (error) {
@@ -46,22 +52,6 @@ export async function GET() {
 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to load kits." },
-      { status: 400 }
-    );
-  }
-}
-
-export async function POST(request: Request) {
-  try {
-    await getCurrentUserId();
-    const body = await request.json();
-    const kit = contentKitSchema.parse(body);
-    saveMockKit(kit);
-
-    return NextResponse.json({ kit });
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to save kit." },
       { status: 400 }
     );
   }

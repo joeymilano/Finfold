@@ -1,4 +1,19 @@
+import { PRICING_PLAN_ORDER, PRICING_PLANS, formatPlanPrice, marketForLocale } from "@/lib/pricing";
+
 export type Locale = "zh" | "en";
+
+function pricingRevenueItems(locale: Locale) {
+  const market = marketForLocale(locale);
+  return PRICING_PLAN_ORDER.map((key) => {
+    const plan = PRICING_PLANS[key];
+    const copy = plan.copy[locale];
+    return {
+      name: copy.name,
+      price: `${formatPlanPrice(plan, market)}/${locale === "en" ? "month" : "月"}`,
+      detail: `${copy.allowance}${locale === "en" ? ". " : "。"}${copy.description}`
+    };
+  });
+}
 
 export const localeNames: Record<Locale, string> = {
   zh: "中文",
@@ -9,36 +24,36 @@ export const dashboardCopy = {
   zh: {
     product: "Finfold",
     englishProduct: "Finfold",
-    subtitle: "把一个想法转化成适配不同平台算法、语气和转化目标的内容资产。",
-    workbench: "内容增长操作系统",
+    subtitle: "把一个想法，变成各平台能直接发的内容。",
+    workbench: "内容创作工作台",
     osKicker: "Finfold AI",
     osHeadline: "跨平台内容增长操作系统",
     osSubtitle: "我们帮助创作者、独立开发者和小型品牌，把一个想法自动转化成适配不同平台算法、语气和转化目标的内容资产，并持续学习什么内容能带来流量、线索和收入。",
     positioningOneLine: "不是 AI 文案改写工具，而是小团队的 AI 内容市场专员。",
     readyTitle: "生产区已就绪",
-    readyDescription: "完成资产包后，可以继续复制、导出、保存历史，并把发布后的表现数据回流到下一轮迭代。",
-    freeLimit: "免费：5 个内容包/月",
-    generate: "生成增长资产包",
+    readyDescription: "生成后可以复制、导出、保存历史，还能把发布后的效果记下来，让下一次更准。",
+    freeLimit: "免费：每月 50 创作点数",
+    generate: "生成各平台内容",
     openLatest: "打开最新内容包",
     language: "语言版本",
-    inputStep: "产品资产",
+    inputStep: "要发的内容",
     strategyStep: "目标与平台",
     outputStep: "内容输出",
     account: "账号",
     trialAccount: "试用用户",
     login: "登录",
-    credits: "额度",
-    ideaTitle: "产品资产 / 卖点 / 发布素材",
+    credits: "创作点数",
+    ideaTitle: "产品动态 / 卖点 / 发布素材",
     ideaHint: "粘贴产品介绍、发布想法、文章草稿、创始人动态或咨询观点。尽量写清楚受众、价值、证明和希望用户做什么。",
-    mediaTitle: "照片和视频素材",
-    mediaUpload: "上传截图、产品图、活动图或视频",
-    mediaNote: "素材会作为生成上下文保存；视频素材先用于理解产品和场景。",
+    mediaTitle: "图片素材",
+    mediaUpload: "上传截图、产品图或活动图",
+    mediaNote: "仅支持 JPEG、PNG、WebP；单张不超过 25MB 和 2000 万像素。AI 会读取图片中可见的内容，让文案与视觉保持一致。",
     personaTitle: "目标客户",
-    goalTitle: "增长目标",
+    goalTitle: "你想要什么效果",
     platformsTitle: "选择平台",
     selected: "已选择",
     outputTitle: "平台内容板",
-    emptyTitle: "平台资产包会出现在这里",
+    emptyTitle: "各平台文案会出现在这里",
     emptyBody: "每个平台都会形成标题、正文、CTA、视觉建议、注意事项和平台策略。",
     copy: "复制",
     copied: "已复制",
@@ -50,8 +65,9 @@ export const dashboardCopy = {
     lockedNotesPreview: "展示模式已开放平台禁忌、发布时间和风控提醒。",
     copiedKit: "已复制整包",
     markdown: "导出 MD",
-    trialReady: "展示内容已生成",
-    trialDescription: "展示模式已开放全文、复制、导出、历史预览和数据分析，方便完整体验产品能力。",
+    designCover: "设计封面",
+    trialReady: "试用内容已生成",
+    trialDescription: "免费注册后，每月获赠 50 创作点数，可完整生成、复制、导出并复盘内容。",
     body: "正文",
     cta: "转化动作",
     notes: "注意事项",
@@ -81,14 +97,10 @@ export const dashboardCopy = {
     moatTitle: "壁垒不是 prompt，是工作流和数据",
     moatItems: ["平台模板库", "行业打法库", "品牌语气记忆", "历史内容资产库", "高转化内容结构", "多平台表现数据"],
     revenueTitle: "赚钱路径",
-    revenueItems: [
-      { name: "创作者版", price: "9-19 美元/月", detail: "个人品牌、独立开发者，生成增长资产包和发布打法。" },
-      { name: "专业版", price: "29-99 美元/月", detail: "多项目、品牌记忆、多语言、内容日历和实验记录。" },
-      { name: "团队 / 代理版", price: "199 美元+/月 或 项目制", detail: "团队协作、审批、品牌规范、效果追踪和代运营发布包。" }
-    ],
-    readinessTitle: "资产包质检",
+    revenueItems: pricingRevenueItems("zh"),
+    readinessTitle: "内容质量检查",
     readinessSubtitle: "这些状态直接影响生成质量，比展示抽象付费指标更有用。",
-    readinessLabels: ["资产信息量", "平台覆盖", "素材上下文", "输出状态"],
+    readinessLabels: ["信息量", "平台覆盖", "素材上下文", "输出状态"],
     readinessStates: { ready: "已就绪", improve: "可补充", waiting: "待生成" }
   },
   en: {
@@ -102,7 +114,7 @@ export const dashboardCopy = {
     positioningOneLine: "Not an AI copywriting tool. An AI content marketer for small teams.",
     readyTitle: "Workbench is ready",
     readyDescription: "After generation, you can copy, export, save history, and feed performance data into the next iteration.",
-    freeLimit: "Free: 5 kits/month",
+    freeLimit: "Free: 50 AI Credits/month",
     generate: "Generate kit",
     openLatest: "Open latest kit",
     language: "Language",
@@ -115,9 +127,9 @@ export const dashboardCopy = {
     credits: "Credits",
     ideaTitle: "Product / idea / draft",
     ideaHint: "Paste a product intro, launch idea, article draft, founder update, or consulting insight. Add audience, value, proof, and desired action.",
-    mediaTitle: "Photos and video context",
-    mediaUpload: "Upload screenshots, product images, event photos, or videos",
-    mediaNote: "Media is saved as generation context. Video assets are used to understand the product and scene.",
+    mediaTitle: "Image context",
+    mediaUpload: "Upload screenshots, product images, or event photos",
+    mediaNote: "JPEG, PNG, or WebP only; each image must be no more than 25MB and 20 megapixels. Finfold uses what is visibly shown as generation context.",
     personaTitle: "Buyer context",
     goalTitle: "Growth goal",
     platformsTitle: "Select platforms",
@@ -135,8 +147,9 @@ export const dashboardCopy = {
     lockedNotesPreview: "Showcase mode includes platform caveats, timing, and risk notes.",
     copiedKit: "Copied kit",
     markdown: "Markdown",
-    trialReady: "Showcase kit generated",
-    trialDescription: "Showcase mode opens full copy, export, history preview, and analytics so reviewers can inspect the complete workflow.",
+    designCover: "Design cover",
+    trialReady: "Trial kit generated",
+    trialDescription: "Sign up free to get 50 AI Credits/month — generate, copy, export, and review content across platforms.",
     body: "Body",
     cta: "CTA",
     notes: "Notes",
@@ -166,11 +179,7 @@ export const dashboardCopy = {
     moatTitle: "The moat is workflow and data, not prompts",
     moatItems: ["Platform template library", "Industry playbooks", "Brand voice memory", "Historical content library", "High-converting structures", "Cross-platform performance data"],
     revenueTitle: "Revenue paths",
-    revenueItems: [
-      { name: "Creator", price: "$9-19/mo", detail: "Personal brands and indie builders generating kits and launch playbooks." },
-      { name: "Pro", price: "$29-99/mo", detail: "Multi-project workspaces, brand memory, multilingual calendars, and experiment logs." },
-      { name: "Team / Agency", price: "$199+/mo or project", detail: "Collaboration, approval, brand governance, performance tracking, and done-for-you launch packs." }
-    ],
+    revenueItems: pricingRevenueItems("en"),
     readinessTitle: "Kit readiness",
     readinessSubtitle: "These states affect output quality more than abstract business metrics.",
     readinessLabels: ["Idea depth", "Platform coverage", "Media context", "Output state"],
@@ -181,3 +190,35 @@ export const dashboardCopy = {
 export function nextLocale(locale: Locale): Locale {
   return locale === "zh" ? "en" : "zh";
 }
+
+/**
+ * 服务端 locale 检测（share 等公开页用）：先读 finfold-locale cookie（客户端
+ * applyLocale 写入），再回退 Accept-Language，默认中文。edge runtime 兼容。
+ */
+export function detectLocaleFromHeaders(h: Headers): Locale {
+  const cookieMatch = (h.get("cookie") ?? "").match(/finfold-locale=(zh|en)/);
+  if (cookieMatch) return cookieMatch[1] as Locale;
+  const accept = (h.get("accept-language") ?? "").toLowerCase();
+  if (accept.startsWith("en")) return "en";
+  return "zh";
+}
+
+/** share 公开页文案（P1-4 i18n）。 */
+export const sharePageCopy = {
+  zh: {
+    tryFree: "免费试用",
+    tryYourself: "无需登录即可浏览完整创作台；真正生成内容时，再登录免费账户。",
+    madeWith: "用 Finfold 生成 —— 一条产品更新，自动产出各平台原生内容。",
+    nPlatforms: (n: number) => `${n} 个平台`,
+    ogPlatforms: (n: number) => `${n} 个平台 · 每个渠道的原生文案`,
+    ogFallback: "一条产品更新，每个平台都有原生内容"
+  },
+  en: {
+    tryFree: "Try it free",
+    tryYourself: "Preview the full workbench without an account. Sign in with a free account only when you are ready to generate.",
+    madeWith: "Made with Finfold — one product update, native posts for every platform.",
+    nPlatforms: (n: number) => `${n} platforms`,
+    ogPlatforms: (n: number) => `${n} platforms · native posts for every channel`,
+    ogFallback: "One product update, native posts for every platform"
+  }
+};

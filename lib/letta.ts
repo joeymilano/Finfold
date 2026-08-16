@@ -12,14 +12,27 @@
  * Letta docs: https://docs.letta.com/api-reference
  */
 
+import { LLMRequestError } from "@/lib/llm-providers";
+import { readTextWithLimit } from "@/lib/safe-url";
+
+const MAX_LETTA_ERROR_BYTES = 16 * 1024;
+
 // IMPORTANT: read env lazily, NOT at module scope.
 // In the Cloudflare Workers / edge runtime, secrets are bound per-request and
 // are NOT available when this module is first evaluated. Capturing them in
 // module-level consts yields empty strings (which made isLettaConfigured()
 // return false at runtime). Always read process.env inside functions.
+// NOTE on defaults (2026-07-21 incident): openai/* and anthropic/* handles
+// are "per-inference" tier on Letta Cloud — they bill against the account's
+// credit balance, and with a $0 balance every message send fails (production
+// surfaced "Letta agent returned no usable platform outputs"). The free
+// "letta-tier" handles are: letta/auto, letta/auto-chat, letta/auto-fast,
+// letta/auto-memory, letta/glm. Default to a free handle so a deployment
+// without explicit env vars never falls into the paid-tier trap; paid
+// deployments should set LETTA_MODEL / LETTA_GENERATION_MODEL explicitly.
 const lettaBaseUrl  = () => process.env.LETTA_API_URL   ?? "https://api.letta.com";
 const lettaApiKey   = () => process.env.LETTA_API_KEY   ?? "";
-const lettaModel    = () => process.env.LETTA_MODEL     ?? "openai/gpt-4o-mini";
+const lettaModel    = () => process.env.LETTA_MODEL     ?? "letta/auto";
 const lettaEmbedding = () => process.env.LETTA_EMBEDDING ?? "openai/text-embedding-3-small";
 
 /**
@@ -29,6 +42,25 @@ const lettaEmbedding = () => process.env.LETTA_EMBEDDING ?? "openai/text-embeddi
  */
 export const lettaGenerationModel = () =>
   process.env.LETTA_GENERATION_MODEL ?? lettaModel();
+
+/**
+ * Resolve the Letta model handle for a given plan's model tier (see
+ * lib/payment/types.ts PLAN_MODEL_TIER — this is what makes the pricing
+ * plan's cost floor real: haiku-tier plans must never accidentally route
+ * onto the sonnet/opus handles reserved for Growth/Digital Employee).
+ * Falls back to lettaGenerationModel() when a tier-specific handle isn't
+ * configured, so deployments that haven't set up model tiering yet keep
+ * working exactly as before.
+ */
+export function lettaModelForTier(tier: "haiku" | "sonnet" | "opus"): string {
+  if (tier === "opus") {
+    return process.env.LETTA_GENERATION_MODEL_OPUS ?? lettaGenerationModel();
+  }
+  if (tier === "sonnet") {
+    return process.env.LETTA_GENERATION_MODEL_SONNET ?? lettaGenerationModel();
+  }
+  return lettaGenerationModel();
+}
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -80,19 +112,37 @@ function headers(): Record<string, string> {
   };
 }
 
+async function discardBoundedErrorBody(response: Response): Promise<void> {
+  try {
+    await readTextWithLimit(response, MAX_LETTA_ERROR_BYTES);
+  } catch {
+    // readTextWithLimit cancels an oversized streamed body. A declared
+    // Content-Length can fail before a reader is acquired, so cancel again as
+    // a best-effort cleanup without ever surfacing provider-controlled text.
+    await response.body?.cancel().catch(() => undefined);
+  }
+}
+
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  timeoutMs = 30_000
 ): Promise<T> {
   const url = `${lettaBaseUrl()}${path}`;
   const res = await fetch(url, {
     ...options,
+    // Hard timeout. Without this a stalled Letta request hangs forever (no
+    // client-side cap) — which surfaces as "生成卡住不动 / 动不动超时": the
+    // Worker eventually hits Cloudflare's 1102 resource limit before the
+    // request ever returns. Aborting lets the caller's retry/fallback
+    // (generateViaLetta batch retry, provider failover) actually kick in.
+    signal: options.signal ?? AbortSignal.timeout(timeoutMs),
     headers: { ...headers(), ...(options.headers as Record<string, string>) },
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Letta API ${res.status}: ${body || res.statusText}`);
+    await discardBoundedErrorBody(res);
+    throw new LLMRequestError(res.status, `Letta request failed: ${res.status}`);
   }
 
   // DELETE may return empty body
@@ -260,13 +310,34 @@ async function createSharedLettaAgent(): Promise<LettaAgent> {
  * (without recreating the agent) — useful for structured generation where
  * a stronger model returns more reliable JSON.
  */
+/**
+ * Build the user message content. With images, returns a multimodal
+ * OpenAI-compatible content array (text + image_url); without images,
+ * returns a plain string for backward compatibility.
+ */
+function buildMessageContent(
+  text: string,
+  images?: string[]
+): string | Array<{ type: string; text?: string; image_url?: { url: string } }> {
+  if (!images?.length) return text;
+  return [
+    { type: "text", text },
+    ...images.map((url) => ({ type: "image_url", image_url: { url } })),
+  ];
+}
+
 export async function sendLettaMessage(
   agentId: string,
   userMessage: string,
-  overrideModel?: string
+  overrideModel?: string,
+  images?: string[],
+  // Generation is long-running (multi-platform structured JSON), so it gets a
+  // generous ceiling: slow-but-progressing requests still complete, while
+  // truly stuck ones abort (default 90s) instead of hanging until 1102.
+  timeoutMs = 90_000
 ): Promise<LettaParsedResponse> {
   const payload: Record<string, unknown> = {
-    messages: [{ role: "user", content: userMessage }],
+    messages: [{ role: "user", content: buildMessageContent(userMessage, images) }],
   };
   if (overrideModel) {
     payload.override_model = overrideModel;
@@ -277,7 +348,8 @@ export async function sendLettaMessage(
     {
       method: "POST",
       body: JSON.stringify(payload),
-    }
+    },
+    timeoutMs
   );
 
   // Parse response — Letta returns { messages: [...], stop_reason, usage }
@@ -363,7 +435,8 @@ export async function sendLettaStructuredRequest(
  */
 export async function streamLettaMessage(
   agentId: string,
-  userMessage: string
+  userMessage: string,
+  images?: string[]
 ): Promise<ReadableStream<Uint8Array>> {
   const url = `${lettaBaseUrl()}/v1/agents/${agentId}/messages`;
 
@@ -371,14 +444,17 @@ export async function streamLettaMessage(
     method: "POST",
     headers: headers(),
     body: JSON.stringify({
-      messages: [{ role: "user", content: userMessage }],
+      messages: [{ role: "user", content: buildMessageContent(userMessage, images) }],
       stream_tokens: true,
     }),
   });
 
   if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Letta stream API ${res.status}: ${body || res.statusText}`);
+    await discardBoundedErrorBody(res);
+    throw new LLMRequestError(
+      res.status,
+      `Letta stream request failed: ${res.status}`
+    );
   }
 
   if (!res.body) {

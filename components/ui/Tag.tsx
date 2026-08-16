@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type TagTone = "neutral" | "success" | "warn" | "risk" | "brand" | "accent";
+export type TagTone = "neutral" | "success" | "warn" | "risk" | "brand" | "accent" | "action" | "info";
 
 const toneClass: Record<TagTone, string> = {
   neutral: "tag-neutral",
@@ -9,7 +9,9 @@ const toneClass: Record<TagTone, string> = {
   warn: "tag-warn",
   risk: "tag-risk",
   brand: "tag-brand",
-  accent: "tag-accent"
+  accent: "tag-accent",
+  action: "tag-action",
+  info: "tag-info"
 };
 
 export function Tag({

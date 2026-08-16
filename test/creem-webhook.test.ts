@@ -1,16 +1,28 @@
-import { describe, expect, it } from "vitest";
-import { buildCreemSubscriptionUpsert, resolveCreemPlanId } from "@/lib/payment/creem-webhook";
+import { afterEach, describe, expect, it } from "vitest";
+import { buildCreemSubscriptionUpsert, isFoundingMemberProduct, resolveCreemPlanId } from "@/lib/payment/creem-webhook";
 
 describe("Creem webhook helpers", () => {
-  it("resolves plan from Creem product environment mapping", () => {
-    process.env.CREEM_CREATOR_PRODUCT_ID = "prod_creator";
+  afterEach(() => {
+    delete process.env.CREEM_FOUNDING_MEMBER_PRODUCT_ID;
+  });
 
-    expect(resolveCreemPlanId({ productId: "prod_creator" })).toBe("creator");
+  it("resolves plan from Creem product environment mapping", () => {
+    process.env.CREEM_PRO_PRODUCT_ID = "prod_pro";
+
+    expect(resolveCreemPlanId({ productId: "prod_pro" })).toBe("pro");
   });
 
   it("falls back to trusted metadata plan when product mapping is unavailable", () => {
     expect(resolveCreemPlanId({ metadataPlan: "pro" })).toBe("pro");
     expect(resolveCreemPlanId({ metadataPlan: "free" })).toBeNull();
+  });
+
+  it("resolves the founding-member product to the employee plan", () => {
+    process.env.CREEM_FOUNDING_MEMBER_PRODUCT_ID = "prod_founding";
+
+    expect(isFoundingMemberProduct("prod_founding")).toBe(true);
+    expect(isFoundingMemberProduct("prod_other")).toBe(false);
+    expect(resolveCreemPlanId({ productId: "prod_founding" })).toBe("employee");
   });
 
   it("builds subscription upsert data with metadata user fallback", () => {

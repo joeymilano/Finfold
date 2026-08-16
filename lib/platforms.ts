@@ -1,8 +1,10 @@
 import {
   BookOpenText,
   BriefcaseBusiness,
+  Facebook,
   Flame,
   Hash,
+  Instagram,
   MessageCircle,
   Rocket,
   Send,
@@ -10,14 +12,17 @@ import {
   Store,
   Users,
   type LucideIcon
-} from "lucide-react";
+} from "@/components/ui/icons";
 
 export type PlatformId =
   | "wechat"
   | "xiaohongshu"
+  | "zhihu"
   | "moments"
   | "x"
   | "linkedin"
+  | "instagram"
+  | "facebook"
   | "reddit"
   | "product-hunt"
   | "threads"
@@ -39,6 +44,28 @@ export type Platform = {
   avoidList: string[];
   tagStrategy: string;
 };
+
+const englishPlatformLabels: Record<PlatformId, string> = {
+  wechat: "WeChat Official Account",
+  xiaohongshu: "Xiaohongshu / RED",
+  zhihu: "Zhihu",
+  moments: "WeChat Moments",
+  x: "X / Twitter",
+  linkedin: "LinkedIn",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  reddit: "Reddit",
+  "product-hunt": "Product Hunt",
+  threads: "Threads",
+  "hacker-news": "Hacker News",
+  "indie-hackers": "Indie Hackers",
+  "medium-substack": "Newsletter / Substack"
+};
+
+export function getLocalizedPlatformLabel(id: PlatformId, locale: "zh" | "en", short = false): string {
+  const platform = getPlatform(id);
+  return locale === "en" ? englishPlatformLabels[id] : short ? platform.shortLabel : platform.label;
+}
 
 export const platforms: Platform[] = [
   {
@@ -83,12 +110,15 @@ export const platforms: Platform[] = [
     bestFor: "痛点发现、情绪钩子、收藏驱动、素人种草，搜索流量入口。",
     voice: "像真实用户的亲身经历分享，有痛点有故事有具体结果，不像广告，语气口语化，每段超短，大量换行，结尾引导收藏和评论。",
     constraints: [
-      "标题必须≤20字，前5字即痛点或数字，末尾可加省略号制造悬念",
-      "正文600-1500字（平台给超600字内容额外权重）",
-      "每段1-3行，强制换行，绝不写大段落",
+      "标题尽量控制在20字内，明确场景、对象或收益，避免空泛悬念",
+      "正文写到足以解决问题，不迷信固定字数门槛",
+      "图文优先按3:4竖版轮播设计：封面只承诺一件事，后续每页只完成一个信息任务",
+      "产品截图必须裁切、放大并标注重点，不把完整横向界面缩成无法阅读的小图",
+      "发布图片不得包含用于站外导流的二维码、网址、微信号或第三方平台水印；发布前逐张检查",
+      "使用短段落、小标题和留白，优先保证移动端可读性",
       "用emoji作视觉分隔（不超过每段一个），如✅❌🔥💡",
-      "结尾必须有收藏引导和互动问题（如'你们有没有遇到过...'）",
-      "自然融入3-5个#话题标签：2个泛标签+3个垂直长尾标签"
+      "结尾给出可执行下一步；只有适合讨论时才提出具体问题",
+      "只使用与受众、场景和主题高度相关的话题标签"
     ],
     charLimit: 1500,
     viralPatterns: [
@@ -96,17 +126,55 @@ export const platforms: Platform[] = [
       "数字型：'做了X件事/用了X天/省了X元'，数字要具体真实",
       "对比型：'以前这样/现在这样'，视觉冲击，适合前后对比",
       "清单型：'X个你不知道的...'，条目式，适合收藏",
-      "反常识型：'99%的人都做错了这件事'，颠覆认知，触发点赞"
+      "反常识型：挑战一个目标读者默认认知，并在第二页立即给证据"
     ],
     avoidList: [
       "大段文字不换行（直接导致用户划走）",
-      "开头直接介绍产品名称（像广告，被降权）",
-      "纯AI生成内容不加人工改写（平台2025年起必须标注AI，且原创度低被降权）",
+      "开头只有产品名称和功能清单，没有读者场景或价值",
+      "未核对事实、未人工编辑或未按适用规则披露的 AI 辅助内容",
+      "没有证据却使用“99%的人”“人人都在”等伪统计标题",
+      "把完整横屏网页截图直接塞进竖版卡片，导致核心信息不可读",
+      "在封面、轮播图或产品截图中保留站外导流二维码、联系方式或第三方平台水印",
       "标题超过20字或信息量过密",
-      "超过5个话题标签（无效甚至负效）",
-      "没有结尾互动引导（影响评论数，降低CES分）"
+      "堆砌无关热门话题，带来错误流量",
+      "与正文无关的收藏、评论或关注诱导"
     ],
-    tagStrategy: "3-5个话题标签：先选2个大话题蹭流量池（如#独立开发者 #副业），再选3个精准垂直长尾词（如#AI工具推荐 #内容创作工具），标签要与正文高度相关"
+    tagStrategy: "选择少量高度相关的话题：覆盖受众、使用场景和具体主题；数量不是目标，匹配度和搜索意图才是。"
+  },
+  {
+    id: "zhihu",
+    label: "知乎",
+    shortLabel: "知乎",
+    region: "China",
+    icon: MessageCircle,
+    bestFor: "专业解释、经验复盘、搜索沉淀与可信观点，适合回答用户正在认真追问的问题。",
+    voice: "像一个确实做过功课、愿意把来龙去脉讲清楚的人。先接住问题，再用事实、经验和推理往下讲；敢下判断，也诚实说明证据边界。",
+    constraints: [
+      "优先写成问答：标题字段给出要回答的具体问题或文章选题，正文开头直接回应，不用“谢邀”或空泛预告",
+      "每个关键判断都要靠用户素材、可核验来源或明确推理支撑；不得编造亲历、客户故事、数据、引语和来源",
+      "一个回答集中讲透一到两个最有把握的判断；新段落必须增加事实、动作、区别、例外或后果",
+      "长文可用少量小标题帮助定位，但不要把全文硬拆成模板化的三点、五步和整齐排比",
+      "商业关系、产品身份和利益关联要透明；正文先提供独立价值，行动引导保持克制",
+      "使用 AI 辅助生成后，发布时主动勾选“包含 AI 辅助创作”，并由发布者完成人工修改与事实核查"
+    ],
+    charLimit: 8000,
+    viralPatterns: [
+      "直答型：先给有边界的判断 → 说明依据 → 处理最关键的例外 → 给读者可执行的下一步",
+      "经验复盘型：具体处境 → 做过什么 → 哪里失败或改变判断 → 当前更可靠的做法",
+      "机制解释型：先描述现象 → 拆出真正起作用的环节 → 用案例或数据验证 → 说明适用范围",
+      "决策对比型：明确比较对象 → 统一比较条件 → 写清成本与取舍 → 给不同人不同建议",
+      "资料考证型：交代信息来路 → 区分事实、当事人自述与作者推断 → 收住无法确认的部分"
+    ],
+    avoidList: [
+      "答非所问，拿一个通用产品软文硬套进热门问题",
+      "伪造第一人称经历、案例、精确数字、对话或权威来源",
+      "标题党、夸张承诺、情绪煽动和没有证据的群体判断",
+      "批量发布未经人工编辑、事实核查或未声明的 AI 内容",
+      "开头堆背景、概念和套话，迟迟不回答读者的问题",
+      "用“私信领取”“关注后发链接”等导流话术替代正文价值",
+      "为了显得全面而重复同一观点，或用整齐清单凑长文"
+    ],
+    tagStrategy: "知乎不靠正文堆话题标签。优先匹配一个真实、相关且仍有讨论价值的问题，再绑定少量准确话题；问题相关性、专业可信度与正向互动比标签数量更重要。"
   },
   {
     id: "moments",
@@ -147,14 +215,14 @@ export const platforms: Platform[] = [
     region: "Global",
     icon: Hash,
     bestFor: "强观点、创始人叙事、发布动能、公开迭代，out-of-network 算法分发。",
-    voice: "Sharp, compressed, international. Every sentence earns the next. No throat-clearing. First line is the only line that matters for the algorithm.",
+    voice: "Sharp, compressed, international. Every sentence earns the next. No throat-clearing. Open with a clear reason for the reader to continue.",
     constraints: [
-      "First line must be a hook that works standalone — the algorithm decides distribution on line 1",
+      "First line should work standalone and state the audience, tension, change, or payoff",
       "Each tweet in a thread: 150–240 characters, one clear idea, can stand alone",
       "Thread length: 5–12 tweets (longer = higher drop-off)",
-      "Put links in the first comment, NOT the main post — X demotes link-containing posts",
+      "Choose in-post or reply link placement based on the conversion goal, then measure clicks and downstream conversion",
       "No 'just sharing some thoughts' openers — drop in the middle of the action",
-      "End with a specific question to drive replies (replies outweigh likes in the algorithm)"
+      "Use a specific question only when a genuine discussion would improve the post"
     ],
     charLimit: 280,
     viralPatterns: [
@@ -165,8 +233,8 @@ export const platforms: Platform[] = [
       "Value thread: 'I spent [time/money] researching X so you don't have to. Thread:'"
     ],
     avoidList: [
-      "Opening with 'I think' or 'Just wanted to share' — zero signal, killed by algorithm",
-      "External links in main post — X demotes these significantly",
+      "Opening with 'I think' or 'Just wanted to share' without explaining why the reader should care",
+      "Assuming link placement is a universal algorithm rule instead of testing it against the goal",
       "Generic AI buzzwords: 'game-changing', 'revolutionize', 'unlock your potential'",
       "Engagement bait: 'Like if you agree', 'Comment YES' — X flags these",
       "Posting when your audience is offline — posts expire before they reach late arrivals",
@@ -183,12 +251,12 @@ export const platforms: Platform[] = [
     bestFor: "B2B 可信度、创始人故事、专业受众，精准分发而非病毒传播。",
     voice: "Founder narrative meets professional insight. Start with a tension or conflict, build to a specific lesson, end with a question that invites real replies.",
     constraints: [
-      "CRITICAL: First 2 lines (≈210 characters) must hook before 'See more' cutoff — this is your entire ad",
-      "No links in the main post body — LinkedIn demotes them; put the link in first comment",
-      "End with ONE specific question tied to the content (posts with questions get 77% more comments)",
-      "3–5 hashtags maximum — more than 5 triggers spam filters",
+      "Establish the topic and reader value early, before longer content is folded in the feed",
+      "Place links where they best serve the goal and measure both reach and downstream conversion",
+      "End with one specific question only when it invites useful discussion",
+      "Use only a small set of highly relevant hashtags; do not pad the post to hit a formula",
       "Post spacing: leave blank lines between every 1–2 sentences for scanability",
-      "Golden Hour: respond to every substantive comment within the first 60 minutes of posting"
+      "Respond to substantive comments while the discussion is active, without treating 60 minutes as a guaranteed ranking window"
     ],
     charLimit: 3000,
     viralPatterns: [
@@ -199,15 +267,83 @@ export const platforms: Platform[] = [
       "Transparent numbers: 'We went from $0 to $X in Y months. Here's the honest breakdown:'"
     ],
     avoidList: [
-      "Starting with 'I' — LinkedIn's algorithm reportedly penalizes posts starting with 'I'",
+      "Several self-focused opening lines before explaining why the topic matters to the reader",
       "Vague inspirational content: 'Success takes hard work!' with no specific insight",
       "Engagement bait: 'Comment YES to get this resource', emoji polls, 'Like if you agree'",
       "Tag-baiting irrelevant people to boost reach — spam signal",
       "AI-flavor phrases: 'In today's fast-paced world', 'It's no secret that', 'At the end of the day'",
-      "More than 5 hashtags",
+      "Hashtag padding or irrelevant broad tags",
       "Long paragraphs without line breaks — kills scannability"
     ],
-    tagStrategy: "3–5 hashtags: 1 broad topic (#marketing) + 1–2 vertical (#B2BSaaS, #IndieFounder) + 1 niche (#ContentStrategy). Place at the end of the post, not inline."
+    tagStrategy: "Use a small set of highly relevant topic and audience tags when they improve discovery. Test against comparable posts instead of relying on a fixed count."
+  },
+  {
+    id: "instagram",
+    label: "Instagram",
+    shortLabel: "Instagram",
+    region: "Global",
+    icon: Instagram,
+    bestFor: "视觉叙事、品牌建设、生活方式与幕后、Reels/Explore 拉新、强种草转化。",
+    voice: "Visual-first, aspirational but real. The hook lives in the first two lines before '…more'. Emoji is punctuation, not decoration. Sounds like a person behind a brand, not a brand behind a logo.",
+    constraints: [
+      "CRITICAL: 前 ~125 字符（约 2 行）是 '…more' 折叠前唯一可见的部分——钩子永远放在这里",
+      "Reels 是 2025 年的主要拉新引擎——文案必须配一条竖屏 9:16 Reel 或 3–10 页轮播；单张方图几乎没有触达",
+      "标签：只用 3–5 个。Instagram 现在依赖语义匹配，20–30 个标签会被判为垃圾并降权",
+      "正文里的链接不可点击——绝不贴 URL，用 'link in bio' 或 Story 链接贴纸",
+      "轮播要为滑动而设计：第 1 页是封面（让人停下拇指的标题+视觉），2–N 页每页一个要点，最后一页驱动收藏/分享",
+      "为图片写 alt text——它辅助无障碍访问，也喂给 Explore/关键词搜索"
+    ],
+    charLimit: 2200,
+    viralPatterns: [
+      "轮播教学：'building X 时我学到的 5 件事'——每页一个要点，最后一页给出值得收藏的结论",
+      "Reel 模式中断：第一帧打破预期 + 3 秒文字钩子 + 快速给出回报（完播率才是算法）",
+      "Before/After 视觉对比，文案保持简短",
+      "POV/共鸣 Reel：'POV: 你是这样的创始人……'——借用热门音频，粗糙真实胜过精致",
+      "清单轮播：强封面页（'你正在犯的 X 个错误'）+ 编号分页 + 收藏 CTA"
+    ],
+    avoidList: [
+      "标签堆砌（20–30 个）——Instagram 2025 算法将其判为垃圾并削减触达",
+      "只发方图或横图——9:16 Reels 和 4:5 信息流版式占屏更多、排名更高",
+      "首行没有钩子的文案——没人会为慢热开头点开 '…more'",
+      "带 TikTok 水印的 Reels——Instagram 明确降权竞品水印内容",
+      "买粉或加入互动群——检测会连累你已有粉丝的触达",
+      "纯文字无配图——Instagram 不是写长文的地方"
+    ],
+    tagStrategy: "3–5 hashtags：1 个大词（#startup）+ 2–3 个垂直长尾（#buildinpublic、#indiehacker）。放在文案末尾或第一条评论里。相关性胜过数量——语义匹配意味着正文本身的措辞比标签更重要。"
+  },
+  {
+    id: "facebook",
+    label: "Facebook",
+    shortLabel: "Facebook",
+    region: "Global",
+    icon: Facebook,
+    bestFor: "社群运营、中高龄/本地受众、活动推广、Groups 私域、原生视频与直播拉新。",
+    voice: "Conversational and community-minded, like a post in a group you belong to. Slightly longer and more personal than Instagram. Always leaves room for a reply — comments are the #1 ranking signal.",
+    constraints: [
+      "把完整信息放在前 ~3 行——Facebook 在移动端约 6 行 / ~477 字符后用 'See more' 折叠",
+      "原生视频（Reels、直播）在 2025 年触达最高；视频直接上传，绝不外链 YouTube/TikTok",
+      "提一个具体问题——评论对算法的驱动力远大于点赞",
+      "避免正文里放外链——Facebook 大幅降权带链接帖子；把链接放第一条评论",
+      "务必配图或视频——纯文字帖互动量约为三分之一",
+      "要拿自然触达，发到相关 Facebook Groups，别只发主页——主页在不投流时触达几乎为零"
+    ],
+    charLimit: 500,
+    viralPatterns: [
+      "故事 + 开放式提问：一段简短个人经历，结尾 '你会怎么做？'",
+      "原生视频教程或幕后，直接上传到 Facebook（不是链接）",
+      "里程碑 + 真诚致谢——'我们刚到 X。感谢这些人：'并 @ 真实的人",
+      "社群辩论：一个克制的争议观点，邀请双方来评论",
+      "直播官宣：发布或大消息时开播，并保留回放"
+    ],
+    avoidList: [
+      "正文里放外链——Facebook 算法会大幅降权",
+      "无图无视频的纯文字帖",
+      "标题党（'你绝不会相信……''这一招……'）——Facebook 会标记并降权",
+      "互动诱饵（'同意请点赞''评论 YES''@ 一个朋友'）——Facebook 明确降权",
+      "过度官方、新闻稿腔调——Facebook 奖励人味",
+      "带 TikTok 水印的搬运内容"
+    ],
+    tagStrategy: "0–2 个标签，或不用。Facebook 算法不靠标签分发——触达来自分享、评论、原生视频和 Groups。一堆标签既像垃圾又毫无增益。"
   },
   {
     id: "reddit",
@@ -218,12 +354,12 @@ export const platforms: Platform[] = [
     bestFor: "社区讨论、用户调研、问题验证、真实反馈，建立社区存在感。",
     voice: "Sound like a real community member asking a genuine question or sharing a hard-won lesson — not a marketer. Lead with value, earn trust before mentioning your product.",
     constraints: [
-      "CRITICAL: r/startups and r/entrepreneur strictly ban direct self-promotion — never mention product name or URL in post body",
-      "Frame as experience-sharing or question-asking, not announcing",
-      "Post minimum 250 words with specific context (r/startups requirement)",
-      "The 10% rule: your own content/links should be <10% of your total Reddit activity",
-      "Avoid any hard CTA — 'check out my product', 'visit my site', 'DM me for details' = instant removal",
-      "If referencing your own work, frame it as 'a side project I've been building' not 'my startup [Name]'"
+      "Read the current subreddit rules and pinned threads before drafting; promotion and link policies differ by community",
+      "Frame the post around useful experience or a genuine question, and disclose your relationship to the product",
+      "Include enough specific context to make the post useful on its own",
+      "Build a history of real participation; the historical 10% guideline is not a universal sitewide threshold",
+      "Use a CTA only where the current community rules allow it, and keep it transparent and restrained",
+      "Never disguise a commercial relationship as an independent recommendation"
     ],
     charLimit: 10000,
     viralPatterns: [
@@ -234,11 +370,11 @@ export const platforms: Platform[] = [
       "Genuine ask: 'Built something to solve my own problem. What would make this genuinely useful to you?'"
     ],
     avoidList: [
-      "Product name, URL, or any direct link to your product in post body",
+      "Product names or links that violate the current subreddit's promotion rules",
       "Marketing language: 'revolutionary', 'game-changing', 'we built the solution to this'",
       "Fake grassroots: multiple accounts upvoting, coordinated team voting",
-      "AI-generated content (r/entrepreneur explicitly bans it)",
-      "Asking people to DM you or visit your profile for more info",
+      "AI-assisted content that violates a community rule or has not been fact-checked and human-edited",
+      "Asking people to DM or visit a profile when the community rules prohibit solicitation",
       "Posting without genuine prior engagement in the subreddit"
     ],
     tagStrategy: "Reddit uses flair tags (set by moderators), not user-defined hashtags. Choose the correct post flair for r/startups or r/SideProject when available."
@@ -407,12 +543,24 @@ export const platforms: Platform[] = [
 export const requiredPlatformIds: PlatformId[] = [
   "wechat",
   "xiaohongshu",
+  "zhihu",
   "moments",
   "x",
   "linkedin",
+  "instagram",
+  "facebook",
   "reddit",
   "product-hunt"
 ];
+
+/**
+ * Operational cap for one generation request. Plans can expose the complete
+ * platform library, but keeping a single run bounded avoids long-tail latency
+ * and makes partial failures easier to recover from.
+ */
+export const MAX_PLATFORMS_PER_GENERATION = 6;
+
+export const SUPPORTED_PLATFORM_COUNT = platforms.length;
 
 export function getPlatform(platformId: PlatformId): Platform {
   const platform = platforms.find((item) => item.id === platformId);

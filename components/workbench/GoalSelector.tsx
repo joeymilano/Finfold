@@ -1,6 +1,6 @@
 "use client";
 
-import { Target } from "lucide-react";
+import { Target } from "@/components/ui/icons";
 import { growthGoals, type GoalId } from "@/lib/goals";
 import { dashboardCopy, type Locale } from "@/lib/i18n";
 
@@ -8,6 +8,7 @@ type GoalSelectorProps = {
   value: GoalId;
   onChange: (value: GoalId) => void;
   locale: Locale;
+  disabled?: boolean;
 };
 
 const englishGoalLabels: Record<GoalId, string> = {
@@ -17,7 +18,7 @@ const englishGoalLabels: Record<GoalId, string> = {
   "event-promo": "Event promotion"
 };
 
-export function GoalSelector({ value, onChange, locale }: GoalSelectorProps) {
+export function GoalSelector({ value, onChange, locale, disabled = false }: GoalSelectorProps) {
   const copy = dashboardCopy[locale];
 
   return (
@@ -35,12 +36,13 @@ export function GoalSelector({ value, onChange, locale }: GoalSelectorProps) {
               key={goal.id}
               type="button"
               onClick={() => onChange(goal.id)}
-              className={`focus-ring rounded-sm border px-3 py-3 text-left transition ${
-                selected ? "border-brand bg-brand text-white shadow-glow-brand" : "border-hairline bg-surface hover:-translate-y-0.5 hover:border-brand/50 hover:bg-surface-2"
+              disabled={disabled}
+              className={`focus-ring rounded-sm border px-3 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                selected ? "border-action/60 bg-action/[0.075] text-fg shadow-glow-action" : "border-hairline bg-surface hover:-translate-y-0.5 hover:border-action/45 hover:bg-action/[0.035]"
               }`}
             >
               <span className="block text-sm font-semibold">{locale === "zh" ? goal.label : englishGoalLabels[goal.id]}</span>
-              <span className={`mt-1 block text-xs leading-5 ${selected ? "text-white/70" : "text-fg-muted"}`}>
+              <span className="mt-1 block text-xs leading-5 text-fg-muted">
                 {locale === "zh" ? goal.descriptionZh : goal.description}
               </span>
             </button>

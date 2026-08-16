@@ -1,7 +1,8 @@
-export const runtime = "edge";
 
 import { NextResponse } from "next/server";
 import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
+import { enforceApiRateLimit } from "@/lib/api-rate-limit";
+import { analyzePassword } from "@/lib/password-policy";
 
 /**
  * POST /api/auth/password
@@ -13,6 +14,9 @@ import { createSupabaseServerClient, hasSupabaseConfig } from "@/lib/supabase";
  * Expected body: { password: string }
  */
 export async function POST(request: Request) {
+  const rateLimited = enforceApiRateLimit(request, { scope: "auth:password", limit: 5, windowMs: 60 * 60 * 1000 });
+  if (rateLimited) return rateLimited;
+
   if (!hasSupabaseConfig()) {
     return NextResponse.json(
       { error: "Auth system not configured." },
@@ -33,9 +37,11 @@ export async function POST(request: Request) {
     );
   }
 
-  if (password.length < 6) {
+  // 密码强度硬校验（与前端 / 注册共享同一策略，防绕过）
+  const pwdResult = analyzePassword(password);
+  if (!pwdResult.valid) {
     return NextResponse.json(
-      { error: "Password must be at least 6 characters." },
+      { error: pwdResult.messageEn || "Password does not meet requirements." },
       { status: 400 }
     );
   }
