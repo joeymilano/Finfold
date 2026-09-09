@@ -1,4 +1,4 @@
-# Finfold — Your First AI Marketing Employee
+# Finfold — AI marketing agent
 
 > **GOAI 世界人工智能开源大赛 · 无界应用 Boundless Agents 赛道参赛作品**
 >
