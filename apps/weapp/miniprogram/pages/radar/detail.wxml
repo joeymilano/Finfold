@@ -1,0 +1,55 @@
+<view class="page-pad" wx:if="{{loaded}}">
+  <view class="card">
+    <view class="detail-eyebrow">
+      <view class="badge"><view class="badge-dot {{lifecycleClass}}"></view>{{lifecycleLabel}}</view>
+      <text class="opp-time">{{timeAgoText}} · 证据 {{evidence.length}} 条</text>
+    </view>
+    <view class="detail-title font-display">{{title}}</view>
+    <view class="detail-fact body-text">{{fact}}</view>
+    <view class="detail-score-row">
+      <view class="ring-wrap">
+        <score-ring value="{{matchScore}}" size="{{72}}" />
+        <view class="ring-caption faint">匹配度</view>
+      </view>
+      <view class="detail-score-meta">
+        <view class="detail-score-k">与你的业务匹配度</view>
+        <view class="detail-score-v" wx:if="{{matchedTerms.length}}">命中你关注的：{{matchedTermsText}}</view>
+        <view class="ai-badge detail-ai">✦ AI 已读 {{evidence.length}} 条来源后推荐</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="eyebrow"><text class="eyebrow-num">01</text><text>为什么是现在</text><view class="eyebrow-line"></view></view>
+  <view class="card card-raised detail-why">{{whyNow}}</view>
+
+  <view class="eyebrow"><text class="eyebrow-num">02</text><text>为什么和你有关</text><view class="eyebrow-line"></view></view>
+  <view class="card card-raised detail-why">{{whyYou}}</view>
+
+  <view class="eyebrow"><text class="eyebrow-num">03</text><text>切入角度</text><view class="eyebrow-line"></view></view>
+  <view class="card card-raised">
+    <view class="angle-main">{{mainAngle}}</view>
+    <view class="alt" wx:for="{{alternateAngles}}" wx:key="*this">{{item}}</view>
+    <view class="detail-format faint" wx:if="{{recommendedFormat}}">建议形态 · {{recommendedFormat}} · 适合发 {{platformText}}</view>
+  </view>
+
+  <view class="eyebrow"><text class="eyebrow-num">04</text><text>证据来源</text><view class="eyebrow-line"></view></view>
+  <view class="card card-raised evidence-card">
+    <view class="evidence" wx:for="{{evidence}}" wx:key="url" bindtap="copyEvidence" data-url="{{item.url}}">
+      <view class="evidence-title">{{item.title}}</view>
+      <view class="faint evidence-source">{{item.sourceLabel}} · 点击复制原文链接</view>
+    </view>
+  </view>
+
+  <view class="btn-row">
+    <button class="btn" bindtap="feedbackLater">稍后再说</button>
+    <button class="btn btn-primary" bindtap="goDraft">用这个选题写成稿</button>
+  </view>
+  <view class="feedback-row">
+    <text bindtap="feedbackNotRelevant">和我的业务无关</text>
+    <text class="feedback-dot">·</text>
+    <text bindtap="feedbackAlreadyKnew">这个我早知道了</text>
+  </view>
+
+  <!-- 离屏画布：5:4 分享卡 -->
+  <canvas id="sharecard" type="2d" class="share-canvas"></canvas>
+</view>

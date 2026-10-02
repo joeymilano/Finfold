@@ -1,0 +1,1 @@
+<canvas id="ring" type="2d" class="ring" style="width:{{size}}px;height:{{size}}px"></canvas>

@@ -1,0 +1,81 @@
+<view class="page-pad">
+  <!-- 首次画像引导：AI 需要知道你做什么才能算匹配度 -->
+  <view class="card" wx:if="{{showOnboard}}">
+    <view class="onboard-title font-display">先让 AI 认识你的业务</view>
+    <view class="body-text onboard-sub">一句话说清你做什么、卖给谁，机会的匹配度立刻为你定制。</view>
+    <textarea
+      class="textarea onboard-input"
+      placeholder="例：我做一款帮独立开发者管财务的 SaaS，卖给刚起步的 solo builder"
+      placeholder-class="ph"
+      maxlength="160"
+      value="{{onboardBusiness}}"
+      bindinput="onBusinessInput"
+    ></textarea>
+    <input
+      class="input onboard-input"
+      placeholder="关注领域，逗号分隔（例：AI 工具, 出海, 效率）"
+      placeholder-class="ph"
+      maxlength="120"
+      value="{{onboardKeywords}}"
+      bindinput="onKeywordsInput"
+    />
+    <view class="eyebrow onboard-eyebrow">
+      <text>主要发布平台</text>
+      <view class="eyebrow-line"></view>
+    </view>
+    <view class="chip-row">
+      <view class="chip {{onboardPlatform === 'wechat' ? 'chip-active' : ''}}" data-platform="wechat" bindtap="onPlatformChip">公众号</view>
+      <view class="chip {{onboardPlatform === 'xiaohongshu' ? 'chip-active' : ''}}" data-platform="xiaohongshu" bindtap="onPlatformChip">小红书</view>
+      <view class="chip {{onboardPlatform === 'moments' ? 'chip-active' : ''}}" data-platform="moments" bindtap="onPlatformChip">朋友圈</view>
+    </view>
+    <button class="btn btn-primary onboard-go {{onboardSaving || onboardBusiness.length < 4 ? 'btn-disabled' : ''}}" bindtap="submitOnboard" loading="{{onboardSaving}}">
+      开始看机会 · 注册赠 200 点额度
+    </button>
+  </view>
+
+  <!-- 窗口切换：编辑型下划线 -->
+  <view class="window-row">
+    <view class="window-item {{window === '4h' ? 'window-active' : ''}}" data-window="4h" bindtap="switchWindow">4 小时</view>
+    <view class="window-item {{window === '24h' ? 'window-active' : ''}}" data-window="24h" bindtap="switchWindow">24 小时</view>
+    <view class="window-item {{window === '7d' ? 'window-active' : ''}}" data-window="7d" bindtap="switchWindow">7 天</view>
+  </view>
+  <view class="feed-meta faint" wx:if="{{latestSignalText}}">AI 持续扫描全网信号 · 最近一条 {{latestSignalText}}</view>
+
+  <!-- 加载骨架 -->
+  <block wx:if="{{loading}}">
+    <view class="skeleton"></view>
+    <view class="skeleton"></view>
+    <view class="skeleton"></view>
+  </block>
+
+  <!-- 空态 -->
+  <view class="empty" wx:elif="{{cards.length === 0}}">
+    <view class="font-display empty-mark">◎</view>
+    <view>这个时间窗内还没有能匹配上你业务的机会。</view>
+    <view class="faint">信号在持续采集，下拉刷新看看，或换个时间窗。</view>
+  </view>
+
+  <!-- 机会流 -->
+  <block wx:else>
+    <view class="card opp" wx:for="{{cards}}" wx:key="id" data-id="{{item.id}}" bindtap="openDetail">
+      <view class="opp-main">
+        <view class="opp-head">
+          <view class="badge badge-best" wx:if="{{index === 0}}">{{bestLabel}}</view>
+          <view class="badge"><view class="badge-dot {{item.lifecycleClass}}"></view>{{item.lifecycleLabel}}</view>
+          <text class="opp-time">{{item.timeAgoText}}</text>
+        </view>
+        <view class="opp-title">{{item.title}}</view>
+        <view class="opp-why">{{item.whyNowBrief}}</view>
+        <view class="opp-foot">
+          <text class="faint">适合发 {{item.platformText}} · 证据 {{item.evidenceCount}} 条</text>
+          <text class="cta-gold" data-id="{{item.id}}" catchtap="quickDraft">写成稿 →</text>
+        </view>
+      </view>
+      <view class="score-col">
+        <view class="score-num font-display">{{item.matchScore}}</view>
+        <view class="score-label">匹配度</view>
+      </view>
+    </view>
+    <view class="colophon">AI 提案 · 你拍板</view>
+  </block>
+</view>

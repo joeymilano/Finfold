@@ -1,0 +1,23 @@
+# /etc/systemd/system/finfold-scheduler.service
+# Finfold 国内站调度守护进程：生成任务执行 + 定时任务（对应 Cloudflare
+# Worker 的 Queue 消费者与 Cron Triggers）。安装方式见 docs/deploy-cn.md。
+[Unit]
+Description=Finfold CN scheduler daemon (generation queue + crons)
+After=network-online.target finfold-web.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=finfold
+Group=finfold
+WorkingDirectory=/opt/finfold
+EnvironmentFile=/opt/finfold/.env.cn
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node scripts/cn/scheduler.mjs
+Restart=always
+RestartSec=10
+# 停机等待进行中的生成任务收尾（scheduler 自身 90s 内退出）。
+TimeoutStopSec=100
+
+[Install]
+WantedBy=multi-user.target

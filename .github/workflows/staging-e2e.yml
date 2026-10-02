@@ -1,0 +1,94 @@
+name: Staging E2E gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      fault_mode:
+        description: Optional staging-only generation fault to verify
+        required: false
+        default: none
+        type: choice
+        options:
+          - none
+          - provider_timeout_once
+          - terminal_provider_failure
+          - consumer_interruption_once
+          - duplicate_queue_delivery
+          - partial_platform_failure
+      recovery_run_id:
+        description: Optional staging run UUID to recover and clean up
+        required: false
+        default: ""
+        type: string
+  workflow_call:
+    inputs:
+      fault_mode:
+        required: false
+        default: none
+        type: string
+      recovery_run_id:
+        required: false
+        default: ""
+        type: string
+    secrets:
+      STAGING_BASE_URL:
+        required: true
+      STAGING_E2E_PRIMARY_EMAIL:
+        required: true
+      STAGING_E2E_PRIMARY_PASSWORD:
+        required: true
+      STAGING_E2E_SECONDARY_EMAIL:
+        required: true
+      STAGING_E2E_SECONDARY_PASSWORD:
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: staging-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  staging-e2e:
+    name: Real staging critical flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "1"
+      PLAYWRIGHT_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+      E2E_USER_EMAIL: ${{ secrets.STAGING_E2E_PRIMARY_EMAIL }}
+      E2E_USER_PASSWORD: ${{ secrets.STAGING_E2E_PRIMARY_PASSWORD }}
+      E2E_SECONDARY_USER_EMAIL: ${{ secrets.STAGING_E2E_SECONDARY_EMAIL }}
+      E2E_SECONDARY_USER_PASSWORD: ${{ secrets.STAGING_E2E_SECONDARY_PASSWORD }}
+      E2E_FAULT_MODE: ${{ inputs.fault_mode }}
+      E2E_RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run mutating staging E2E
+        run: npm run e2e:staging
+
+      - name: Upload Playwright evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-playwright-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 14

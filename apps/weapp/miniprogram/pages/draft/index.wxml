@@ -1,0 +1,79 @@
+<view class="page-pad">
+  <!-- 选题区 -->
+  <view class="card">
+    <view class="eyebrow draft-eyebrow"><text>选题</text><view class="eyebrow-line"></view></view>
+    <textarea
+      class="textarea"
+      placeholder="写你要发的主题，或从「今日机会」里挑一条带过来"
+      placeholder-class="ph"
+      maxlength="120"
+      value="{{formTitle}}"
+      bindinput="onTitleInput"
+      disabled="{{generating}}"
+    ></textarea>
+    <textarea
+      class="textarea draft-fact"
+      placeholder="补充背景（可选）：来龙去脉、数据、你的看法"
+      placeholder-class="ph"
+      maxlength="600"
+      value="{{formFact}}"
+      bindinput="onFactInput"
+      disabled="{{generating}}"
+    ></textarea>
+
+    <view class="eyebrow draft-eyebrow-gap"><text>发到哪个平台</text><view class="eyebrow-line"></view></view>
+    <view class="chip-row">
+      <view class="chip {{platform === 'wechat' ? 'chip-active' : ''}}" data-platform="wechat" bindtap="onPlatformChip">公众号</view>
+      <view class="chip {{platform === 'xiaohongshu' ? 'chip-active' : ''}}" data-platform="xiaohongshu" bindtap="onPlatformChip">小红书</view>
+      <view class="chip {{platform === 'moments' ? 'chip-active' : ''}}" data-platform="moments" bindtap="onPlatformChip">朋友圈</view>
+    </view>
+
+    <button
+      class="btn btn-primary draft-generate {{formTitle.trim().length < 2 || generating ? 'btn-disabled' : ''}}"
+      bindtap="generate"
+      loading="{{generating}}"
+    >
+      {{generating ? "AI 正在写…" : "生成草稿 · 3 额度"}}
+    </button>
+    <view class="faint draft-credits">剩余额度 {{creditsText}}</view>
+  </view>
+
+  <!-- 生成中 -->
+  <view class="card card-raised" wx:if="{{generating}}">
+    <view class="ai-badge">✦ AI 生成中 · 基于你的业务画像</view>
+    <view class="draft-waiting body-text">AI 在写 {{platformText}}草稿，通常 10~30 秒，写完自动出现在下方。</view>
+  </view>
+
+  <!-- 结果 -->
+  <block wx:if="{{currentDraft}}">
+    <view class="eyebrow"><text class="eyebrow-num">01</text><text>刚写好的草稿</text><view class="eyebrow-line"></view></view>
+    <view class="card card-raised" wx:if="{{currentDraft.status === 'ready'}}">
+      <view class="result-head">
+        <text class="result-title font-display">{{platformText}}草稿</text>
+        <view class="ai-badge">✦ AI 生成 · 发布前请人工确认</view>
+      </view>
+      <scroll-view scroll-y class="result-body">
+        <text user-select>{{currentDraft.content}}</text>
+      </scroll-view>
+      <view class="btn-row">
+        <button class="btn" bindtap="generate">重写一版</button>
+        <button class="btn btn-primary" bindtap="copyContent">复制全文</button>
+      </view>
+    </view>
+    <view class="card card-raised" wx:elif="{{currentDraft.status === 'failed'}}">
+      <view class="draft-error">{{currentDraft.error || "生成失败"}}</view>
+      <view class="faint">失败不扣额度；点上方按钮可重试。</view>
+    </view>
+  </block>
+
+  <!-- 历史 -->
+  <block wx:if="{{history.length}}">
+    <view class="eyebrow"><text class="eyebrow-num">02</text><text>最近的草稿</text><view class="eyebrow-line"></view></view>
+    <view class="card card-raised history-card">
+      <view class="history" wx:for="{{history}}" wx:key="id" data-index="{{index}}" bindtap="toggleHistory">
+        <text class="history-title">{{item.title}}</text>
+        <view class="badge"><view class="badge-dot {{item.dotClass}}"></view>{{item.platformText}}</view>
+      </view>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,66 @@
+.me-credits {
+  text-align: center;
+  padding: 60rpx 40rpx 52rpx;
+  position: relative;
+  overflow: hidden;
+}
+.me-credits::before {
+  content: "";
+  position: absolute;
+  top: -120rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 480rpx;
+  height: 240rpx;
+  background: radial-gradient(closest-side, rgba(217, 164, 65, 0.13), transparent);
+}
+.me-credits-label {
+  position: relative;
+  font-size: 22rpx;
+  letter-spacing: 0.2em;
+  color: var(--label);
+  padding-left: 0.2em;
+}
+.me-credits-num {
+  position: relative;
+  font-size: 116rpx;
+  font-weight: 600;
+  color: var(--gold);
+  line-height: 1.15;
+  margin-top: 8rpx;
+}
+.me-credits-unit {
+  font-size: 30rpx;
+  color: var(--label);
+  margin-left: 12rpx;
+  letter-spacing: 0.1em;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+  font-weight: 400;
+}
+.me-credits-note {
+  position: relative;
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--hairline);
+}
+.me-audience {
+  margin-top: 20rpx;
+  min-height: 110rpx;
+}
+.me-keywords {
+  margin-top: 20rpx;
+}
+.me-platform-eyebrow {
+  margin: 32rpx 0 20rpx;
+}
+.me-save {
+  margin-top: 36rpx;
+}
+.me-about-title {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.me-about-line {
+  margin-top: 14rpx;
+  line-height: 1.7;
+}

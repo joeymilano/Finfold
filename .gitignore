@@ -1,0 +1,63 @@
+.next
+.vercel
+.open-next
+node_modules
+.env
+.env.local
+.env*.local
+coverage
+dist
+*.log
+.DS_Store
+.claude
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+apps/chrome-extension/vite.config.js
+apps/chrome-extension/vite.config.d.ts
+apps/chrome-extension/release/
+
+# Codex CLI local debug screenshots & dev log — process artifacts, never shipped
+.codex-tmp/
+
+# Wrangler (Cloudflare Workers) local build cache
+.wrangler/
+
+# Playwright authentication and local artifacts. Authentication state may
+# contain session cookies and must never be committed.
+playwright/.auth/
+playwright-report/
+test-results/
+
+# Local deck / pitch workspace (not part of the shipped app)
+deck-upgrade/
+
+# Local marketing & demo assets at repo root — kept on disk, kept out of git
+/*.mp4
+/*.pptx
+/*.docx
+/Finfold_Deck*.html
+
+# NewMax local session cache (AI assistant conversation state)
+conversations/
+.newmax/
+
+# AI-assistant session plans & one-off research/BP artifacts (kept on disk, out of git)
+.zcode/
+artifacts/
+
+# Local ops outputs, pitch decks, and one-off internal records (kept on disk, out of git)
+/output/
+/outputs/
+/tmp/
+/audits/
+/demo-video/
+/tools/
+/*.pdf
+.finfold-plugin-icon-upload.png
+supabase/ACTIVATION_CODES_*.md
+
+# Local assistant / experiment workspaces that must never enter git
+hackathon/
+.cometchat/
+.mcp.json
+supabase/.temp/

@@ -1,0 +1,74 @@
+{
+  "mcpServers": {
+    "finfold-radar": {
+      "command": "wxcfg",
+      "args": ["cloud", "call", "bridge"],
+      "env": {},
+      "description": "Finfold 机会雷达：今日机会、机会详情、AI 成稿（经微信云开发云函数 bridge 调用，op=skillCall）"
+    }
+  },
+  "tools": [
+    {
+      "name": "get_today_opportunities",
+      "description": "获取今天值得写的选题机会（AI 打分匹配用户业务）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "window": { "type": "string", "enum": ["4h", "24h", "7d"], "description": "时间窗口，默认 24h" }
+        }
+      },
+      "call": {
+        "function": "bridge",
+        "op": "skillCall",
+        "method": "GET",
+        "path": "/api/weapp/v1/opportunities",
+        "query": { "window": "$.window", "limit": "5" }
+      }
+    },
+    {
+      "name": "get_opportunity_detail",
+      "description": "获取一条机会的完整详情（为什么是现在/和你有关/证据来源/切入角度）",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "机会 UUID" }
+        },
+        "required": ["id"]
+      },
+      "call": {
+        "function": "bridge",
+        "op": "skillCall",
+        "method": "GET",
+        "path": "/api/weapp/v1/opportunities/$.id"
+      }
+    },
+    {
+      "name": "generate_platform_draft",
+      "description": "为选题生成单平台草稿（公众号/小红书/朋友圈）。消耗 3 点用户额度，调用前必须告知用户",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "source": { "type": "string", "enum": ["opportunity", "free"] },
+          "opportunityId": { "type": "string" },
+          "platform": { "type": "string", "enum": ["wechat", "xiaohongshu", "moments"] },
+          "topic": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "fact": { "type": "string" },
+              "angle": { "type": "string" }
+            },
+            "required": ["title"]
+          }
+        },
+        "required": ["source", "platform", "topic"]
+      },
+      "call": {
+        "function": "bridge",
+        "op": "skillCall",
+        "method": "POST",
+        "path": "/api/weapp/v1/drafts"
+      }
+    }
+  ]
+}

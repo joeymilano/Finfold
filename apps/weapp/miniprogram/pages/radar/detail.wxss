@@ -1,0 +1,124 @@
+.detail-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.opp-time {
+  margin-left: auto;
+  color: var(--label);
+  font-size: 21rpx;
+  letter-spacing: 0.03em;
+}
+.detail-title {
+  font-size: 48rpx;
+  font-weight: 700;
+  line-height: 1.42;
+  color: var(--fg);
+}
+.detail-fact {
+  margin-top: 20rpx;
+}
+.detail-score-row {
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+  margin-top: 36rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid var(--hairline);
+}
+.ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+}
+.ring-caption {
+  letter-spacing: 0.16em;
+  padding-left: 0.16em;
+}
+.detail-score-meta {
+  flex: 1;
+}
+.detail-score-k {
+  font-size: 22rpx;
+  letter-spacing: 0.12em;
+  color: var(--label);
+}
+.detail-score-v {
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  color: var(--body-c);
+}
+.detail-ai {
+  margin-top: 18rpx;
+}
+.detail-why {
+  color: var(--body-c);
+  font-size: 28rpx;
+  line-height: 1.8;
+}
+.angle-main {
+  font-size: 30rpx;
+  line-height: 1.75;
+  color: var(--fg);
+}
+.alt {
+  margin-top: 20rpx;
+  display: flex;
+  gap: 16rpx;
+  color: var(--label);
+  font-size: 25rpx;
+  line-height: 1.6;
+}
+.alt::before {
+  content: "—";
+  color: var(--gold-dim);
+}
+.detail-format {
+  margin-top: 28rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--hairline);
+}
+.evidence-card {
+  padding-top: 12rpx;
+  padding-bottom: 16rpx;
+}
+.evidence {
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--hairline);
+}
+.evidence:last-child {
+  border-bottom: none;
+}
+.evidence-title {
+  font-size: 27rpx;
+  color: var(--fg);
+}
+.evidence-source {
+  margin-top: 8rpx;
+}
+.feedback-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16rpx;
+  padding: 36rpx 0 8rpx;
+  color: var(--label);
+  font-size: 23rpx;
+}
+.feedback-row text {
+  text-decoration: underline;
+  text-underline-offset: 6rpx;
+}
+.feedback-dot {
+  text-decoration: none !important;
+  opacity: 0.45;
+}
+.share-canvas {
+  position: fixed;
+  left: -9999rpx;
+  top: 0;
+  width: 750rpx;
+  height: 600rpx;
+}

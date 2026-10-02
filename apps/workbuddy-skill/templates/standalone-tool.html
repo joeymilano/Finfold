@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>获客工具</title>
+<!-- ============================================================
+  Finfold 获客搭子 · 自包含互动自测模板
+  用法：只改下面的 TOOL 配置（标题/品牌/题目/结果/入口），其余不动。
+  约束：本文件不加载任何外部资源；访客作答全部在浏览器本地完成，
+  不发送任何网络请求（唯一的外链是结果页里工具主人自己的入口）。
+============================================================= -->
+<script>
+"use strict";
+const TOOL = {
+  "title": "你的作品集，现在最该先改哪里？",
+  "intro": "五道题，两分钟，得到一份对应的修改清单。匿名作答，不需要留任何联系方式。",
+  "brand": { "name": "某某工作室", "tagline": "作品集辅导", "accent_color": "#0f766e" },
+  "questions": [
+    { "id": "q1", "text": "你的申请或求职方向明确吗？", "help": "指目标国家、公司类型、岗位都已收窄",
+      "options": [
+        { "id": "q1a", "text": "明确了，就冲这一类", "points": 4 },
+        { "id": "q1b", "text": "大概有个方向", "points": 2 },
+        { "id": "q1c", "text": "还在探索", "points": 0 }
+      ] },
+    { "id": "q2", "text": "你有 2 个以上完整的项目吗？", "help": "完整 = 有背景、有你做的事、有结果",
+      "options": [
+        { "id": "q2a", "text": "有，都讲得比较完整", "points": 4 },
+        { "id": "q2b", "text": "有项目，但讲得零散", "points": 2 },
+        { "id": "q2c", "text": "还在攒项目", "points": 0 }
+      ] },
+    { "id": "q3", "text": "项目里「为什么这么做」讲得清楚吗？", "help": "不是只放成果图，而是决策过程",
+      "options": [
+        { "id": "q3a", "text": "清楚，每页都有取舍说明", "points": 4 },
+        { "id": "q3b", "text": "写了一点，不成体系", "points": 2 },
+        { "id": "q3c", "text": "基本只放了成果", "points": 0 }
+      ] },
+    { "id": "q4", "text": "整个作品集的视觉呈现统一吗？", "help": "排版、配色、图标风格是否像一个人做的",
+      "options": [
+        { "id": "q4a", "text": "统一，有自己的规范", "points": 4 },
+        { "id": "q4b", "text": "大体统一，有细节跳戏", "points": 2 },
+        { "id": "q4c", "text": "每个项目各是各的", "points": 0 }
+      ] },
+    { "id": "q5", "text": "你现在最担心哪个环节？", "help": "",
+      "options": [
+        { "id": "q5a", "text": "项目够多，就是讲不好", "points": 4 },
+        { "id": "q5b", "text": "讲得还行，视觉拿不出手", "points": 2 },
+        { "id": "q5c", "text": "不知道从哪开始改", "points": 0 }
+      ] }
+  ],
+  "results": [
+    { "id": "r_story", "title": "先把项目过程讲清楚",
+      "summary": "你目前优先要解决的不是增加项目数量，而是把已有项目的决策过程讲清楚：面试官想看的是你怎么想的，不只是你做出来了什么。",
+      "checklist": ["给每个项目补一段「问题定义」：当时面对什么约束", "挑一个关键取舍写清楚：为什么选 A 不选 B", "让结果对应回最初的目标，形成闭环"],
+      "basis": "第 2、3 题得分低，说明叙事是当前短板，而不是数量或视觉。",
+      "min_score": 0, "max_score": 8, "entry": "entry_review" },
+    { "id": "r_visual", "title": "视觉统一度是下一件事",
+      "summary": "你的内容和叙事已经有一定基础，现在拖后腿的是呈现：不统一的视觉会让好内容显得业余。",
+      "checklist": ["定一套三色以内的配色和两款字体", "统一封面版式，让每个项目入口长得像一家", "删掉风格突兀的装饰元素"],
+      "basis": "前几题基础尚可、第 4 题得分低，视觉是当前最短板。",
+      "min_score": 9, "max_score": 13, "entry": "entry_review" },
+    { "id": "r_ready", "title": "你已经在可以投递的水平线上",
+      "summary": "方向、叙事、视觉都有基础了，剩下的是打磨细节和投递节奏，而不是再大改。",
+      "checklist": ["按目标岗位定制开篇第一个项目", "找两位目标行业的人各看十分钟，记下他们卡在哪", "定一个两周投递节奏并执行"],
+      "basis": "多数题得分较高，整体准备度好，进入打磨阶段。",
+      "min_score": 14, "max_score": 20, "entry": "entry_review" }
+  ],
+  "entries": [
+    { "id": "entry_review", "label": "预约一次作品集诊断", "url": "https://example.com/booking", "hint": "带一个具体项目来，我们一起看" }
+  ],
+  "show_finfold_credit": true
+};
+</script>
+<style>
+  :root { --accent: #0f766e; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --bg: #fafaf9; --card: #ffffff; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 24px 16px 56px; }
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .brand-logo { width: 44px; height: 44px; border-radius: 12px; background: var(--accent); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; flex-shrink: 0; }
+  .brand-name { font-weight: 600; font-size: 15px; }
+  .brand-tagline { font-size: 12px; color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 20px; }
+  h1 { font-size: 21px; line-height: 1.4; }
+  .intro-text { font-size: 14px; color: var(--muted); margin-top: 10px; }
+  .meta { font-size: 12px; color: var(--muted); margin-top: 14px; }
+  .btn-primary { display: block; width: 100%; border: none; border-radius: 12px; background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; padding: 13px; margin-top: 22px; cursor: pointer; }
+  .btn-primary:active { opacity: .88; }
+  .progress { display: flex; gap: 6px; margin-bottom: 18px; }
+  .progress span { flex: 1; height: 6px; border-radius: 3px; background: var(--line); }
+  .progress span.on { background: var(--accent); }
+  .q-index { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .q-text { font-size: 18px; font-weight: 600; margin-top: 6px; line-height: 1.45; }
+  .q-help { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .options { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+  .option { text-align: left; border: 1px solid var(--line); background: var(--card); border-radius: 12px; padding: 13px 14px; font-size: 14px; cursor: pointer; color: var(--fg); }
+  .option:active { border-color: var(--accent); }
+  .quiz-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; }
+  .btn-back { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 6px 2px; }
+  .quiz-count { font-size: 12px; color: var(--muted); }
+  .r-kicker { font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .r-title { font-size: 20px; font-weight: 700; margin-top: 8px; line-height: 1.4; }
+  .r-summary { font-size: 14px; margin-top: 10px; }
+  .r-list-title { font-size: 14px; font-weight: 600; margin-top: 20px; }
+  .r-list { list-style: none; margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .r-list li { display: flex; gap: 10px; font-size: 14px; }
+  .tick { color: var(--accent); font-weight: 700; flex-shrink: 0; }
+  .basis { background: var(--bg); border-radius: 12px; padding: 14px; margin-top: 18px; font-size: 12px; color: var(--muted); }
+  .basis b { color: var(--fg); }
+  .entry { display: flex; flex-direction: column; align-items: center; gap: 3px; text-decoration: none; background: var(--accent); color: #fff; border-radius: 12px; padding: 14px; margin-top: 22px; font-size: 15px; font-weight: 600; }
+  .entry-hint { font-size: 11px; font-weight: 400; opacity: .85; }
+  .r-actions { display: flex; justify-content: center; gap: 14px; margin-top: 16px; }
+  .r-actions button { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; padding: 6px; }
+  .foot { margin-top: 32px; text-align: center; font-size: 11px; color: var(--muted); }
+  .foot a { color: var(--muted); }
+  .credit-close { background: none; border: none; color: var(--muted); font-size: 11px; cursor: pointer; margin-left: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="brand" id="brand"></header>
+  <main id="app" class="card"></main>
+  <footer class="foot">
+    <div>匿名作答，不记录个人答案，不需要注册任何账号。</div>
+    <div id="credit" style="display:none;margin-top:6px;">
+      <a href="https://www.finfold.app/workbuddy?utm_source=leadtool_export" target="_blank" rel="noopener">由 Finfold 制作 · 为我的业务做一个</a>
+      <button type="button" class="credit-close" onclick="document.getElementById('credit').style.display='none'">×</button>
+    </div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+(function () {
+  var accent = (TOOL.brand && TOOL.brand.accent_color) || "#0f766e";
+  document.documentElement.style.setProperty("--accent", accent);
+  document.title = TOOL.title;
+
+  var logo = (TOOL.brand.name || "?").slice(0, 1).toUpperCase();
+  document.getElementById("brand").innerHTML =
+    '<div class="brand-logo">' + esc(logo) + "</div>" +
+    '<div><div class="brand-name">' + esc(TOOL.brand.name) + "</div>" +
+    (TOOL.brand.tagline ? '<div class="brand-tagline">' + esc(TOOL.brand.tagline) + "</div>" : "") + "</div>";
+
+  if (TOOL.show_finfold_credit !== false) document.getElementById("credit").style.display = "block";
+
+  var app = document.getElementById("app");
+  var step = -1; // -1 = intro
+  var answers = {};
+
+  function esc(value) {
+    return String(value).replace(/[&<>"']/g, function (ch) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+    });
+  }
+
+  function total() {
+    var sum = 0;
+    TOOL.questions.forEach(function (question) {
+      question.options.forEach(function (option) {
+        if (answers[question.id] === option.id) sum += option.points;
+      });
+    });
+    return sum;
+  }
+
+  function findResult() {
+    var score = total();
+    return TOOL.results.find(function (result) {
+      return score >= result.min_score && score <= result.max_score;
+    });
+  }
+
+  function render() {
+    if (step === -1) {
+      app.innerHTML =
+        "<h1>" + esc(TOOL.title) + "</h1>" +
+        '<p class="intro-text">' + esc(TOOL.intro) + "</p>" +
+        '<p class="meta">' + TOOL.questions.length + " 道题 · 约 2 分钟</p>" +
+        '<button type="button" class="btn-primary" id="start">开始</button>';
+      document.getElementById("start").onclick = function () { step = 0; render(); };
+      return;
+    }
+
+    if (step >= TOOL.questions.length) {
+      var result = findResult();
+      if (!result) { app.innerHTML = '<p class="intro-text">结果计算出现问题，请重新测一遍。</p><button type="button" class="btn-primary" id="restart2">重新测</button>'; document.getElementById("restart2").onclick = reset; return; }
+      var entry = (TOOL.entries || []).find(function (item) { return item.id === result.entry; });
+      app.innerHTML =
+        '<p class="r-kicker">' + esc(TOOL.brand.name) + " · 你的结果</p>" +
+        '<h2 class="r-title">' + esc(result.title) + "</h2>" +
+        '<p class="r-summary">' + esc(result.summary) + "</p>" +
+        '<p class="r-list-title">现在可以先做这三件事</p>' +
+        '<ul class="r-list">' + result.checklist.map(function (item) {
+          return '<li><span class="tick">✓</span><span>' + esc(item) + "</span></li>";
+        }).join("") + "</ul>" +
+        '<div class="basis"><b>为什么给你这个结果</b><br />' + esc(result.basis) + "</div>" +
+        (entry && entry.url
+          ? '<a class="entry" href="' + esc(entry.url) + '" target="_blank" rel="noopener">' + esc(entry.label) +
+            (entry.hint ? '<span class="entry-hint">' + esc(entry.hint) + "</span>" : "") + "</a>"
+          : "") +
+        '<div class="r-actions"><button type="button" id="share">分享给朋友</button><button type="button" id="restart">重新测</button></div>';
+      document.getElementById("restart").onclick = reset;
+      document.getElementById("share").onclick = function () {
+        var url = location.href;
+        if (navigator.share) { navigator.share({ title: TOOL.title, url: url }).catch(function () {}); }
+        else if (navigator.clipboard) { navigator.clipboard.writeText(url); this.textContent = "链接已复制"; }
+      };
+      return;
+    }
+
+    var question = TOOL.questions[step];
+    app.innerHTML =
+      '<div class="progress">' + TOOL.questions.map(function (_item, index) {
+        return "<span" + (index <= step ? ' class="on"' : "") + "></span>";
+      }).join("") + "</div>" +
+      '<p class="q-index">第 ' + (step + 1) + " 题</p>" +
+      '<h2 class="q-text">' + esc(question.text) + "</h2>" +
+      (question.help ? '<p class="q-help">' + esc(question.help) + "</p>" : "") +
+      '<div class="options">' + question.options.map(function (option) {
+        return '<button type="button" class="option" data-option="' + esc(option.id) + '">' + esc(option.text) + "</button>";
+      }).join("") + "</div>" +
+      '<div class="quiz-foot">' +
+      (step > 0 ? '<button type="button" class="btn-back" id="back">‹ 上一题</button>' : "<span></span>") +
+      '<span class="quiz-count">' + Object.keys(answers).length + "/" + TOOL.questions.length + "</span></div>";
+
+    Array.prototype.forEach.call(app.querySelectorAll(".option"), function (button) {
+      button.onclick = function () {
+        answers[question.id] = button.getAttribute("data-option");
+        step += 1;
+        render();
+      };
+    });
+    var back = document.getElementById("back");
+    if (back) back.onclick = function () { step -= 1; render(); };
+  }
+
+  function reset() {
+    answers = {};
+    step = 0;
+    render();
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+name = "finfold-app"
+main = "worker.ts"
+compatibility_date = "2026-07-29"
+compatibility_flags = ["nodejs_compat"]
+
+[[routes]]
+pattern = "www.finfold.app"
+custom_domain = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+# Workers Paid plan is now active, so [limits] cpu_ms is supported (the Free
+# plan rejected it with "CPU limits are not supported for the Free plan").
+# Raising CPU to the Paid maximum (5 min) gives multi-platform generation
+# full headroom and eliminates Cloudflare Error 1102 (CPU exceeded) that used
+# to kill runs mid-generation on the old 10ms/50ms Free cap. The default on
+# Paid is 30s; we set the 5-minute ceiling so even worst-case batched runs
+# (Qwen/DeepSeek failover + image gen across many platforms) cannot be CPU-
+# capped. migration 073's attempt cap + reconcile-before-reclaim in
+# claim_generation_job keep a killed invocation safe regardless.
+[limits]
+cpu_ms = 300000
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
+
+[secrets]
+# This name-only declaration improves type generation and local-dev warnings.
+# The repository's security:check:cloudflare deploy gate verifies that every
+# name exists remotely as an encrypted secret before upload.
+required = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TURNSTILE_SECRET_KEY",
+  "INTEGRATION_ENCRYPTION_KEY",
+  "CRON_WATCH_SECRET",
+  "CRON_PERF_SECRET",
+  "CREEM_WEBHOOK_SECRET",
+  "LETTA_API_KEY",
+  "DASHSCOPE_FREE_API_KEY",
+  "DASHSCOPE_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "IMAGE_API_KEY",
+  "CLOUDFLARE_AI_TOKEN",
+  "CREEM_API_KEY",
+  "ADMIN_USER_IDS",
+  "GENERATION_WORKER_SECRET",
+  "X_OAUTH_CLIENT_ID",
+  "X_OAUTH_CLIENT_SECRET",
+  "WECHAT_COMPONENT_APP_ID",
+  "WECHAT_COMPONENT_APP_SECRET",
+  "WECHAT_COMPONENT_TOKEN",
+  "WECHAT_COMPONENT_ENCODING_AES_KEY",
+  "MISSIONGET_WEBHOOK_SECRET",
+  "MISSIONGET_PARTNER_USER_ID",
+  "ZCWPAY_PID",
+  "ZCWPAY_MERCHANT_PRIVATE_KEY",
+  "ZCWPAY_PLATFORM_PUBLIC_KEY"
+]
+
+[[queues.producers]]
+binding = "GENERATION_QUEUE"
+queue = "finfold-generation-jobs"
+
+[[queues.consumers]]
+queue = "finfold-generation-jobs"
+max_batch_size = 1
+max_batch_timeout = 1
+max_retries = 4
+retry_delay = 30
+dead_letter_queue = "finfold-generation-jobs-dlq"
+# Upper bound on how many generation jobs the queue runs at once across the
+# whole environment. Raised 3 -> 6 as step 1 of a staged throughput increase:
+# batched LLM calls now run in parallel inside each job (lib/llm.ts), so a
+# single run is faster and each slot turns over quicker — 6 slots roughly
+# doubles concurrent-user capacity without touching the provider chain.
+# REVERT to 3 if wrangler tail shows provider 429s. Safe to push toward
+# 12-15 once Qwen/DeepSeek rate limits are confirmed against real traffic.
+max_concurrency = 6
+
+[[queues.consumers]]
+queue = "finfold-generation-jobs-dlq"
+max_batch_size = 1
+max_batch_timeout = 1
+max_retries = 2
+retry_delay = 300
+max_concurrency = 1
+
+[triggers]
+crons = ["* * * * *", "17 2 * * *", "0 0 * * *", "30 12 * * *", "30 2 * * *", "30 13 * * *"]
+
+[vars]
+# Private unpacked pilot + Chrome Web Store release (lgkoejhkpfpbpebdlbgojngohgghmgpg,
+# Finfold 1.1.5 "Social Drafts"). Store users sign in before generating; anonymous traffic stays off.
+FINFOLD_EXTENSION_REPLY_DRAFTS_ENABLED = "true"
+# Reply pilot rollout mode: "open" = every signed-in extension user, "whitelist"
+# = FINFOLD_EXTENSION_REPLY_PILOT_USER_IDS only, "off" = disabled. Rollback is
+# one line here, or flip FINFOLD_EXTENSION_REPLY_DRAFTS_ENABLED to kill everything.
+FINFOLD_EXTENSION_REPLY_PILOT_MODE = "open"
+# Best-effort per-user daily reply generation cap (Beijing midnight reset);
+# credit billing remains the hard cap. 30 replies ≈ 90 credits.
+FINFOLD_EXTENSION_REPLY_DAILY_LIMIT = "30"
+FINFOLD_EXTENSION_REPLY_PILOT_USER_IDS = "00000000-0000-0000-0000-000000000000"
+FINFOLD_EXTENSION_AUTH_ENABLED = "true"
+FINFOLD_EXTENSION_PAID_ACTIONS_ENABLED = "true"
+FINFOLD_EXTENSION_ANONYMOUS_ENABLED = "false"
+FINFOLD_EXTENSION_ANONYMOUS_DAILY_LIMIT = "10"
+FINFOLD_EXTENSION_ANONYMOUS_IP_ATTEMPTS = "3"
+FINFOLD_EXTENSION_ORIGINS = "chrome-extension://gebbcemokglolnbocggbefmkjkfkcfhe,chrome-extension://lgkoejhkpfpbpebdlbgojngohgghmgpg"
+# Growth loop R1 pilot (migrations 107+108 applied). Kill switch is
+# FINFOLD_GROWTH_LOOP_ENABLED; whitelist admits only the owner account for the
+# first self-serve round. Rollback = flip ENABLED to false and redeploy.
+FINFOLD_GROWTH_LOOP_ENABLED = "true"
+FINFOLD_GROWTH_LOOP_PILOT_MODE = "whitelist"
+FINFOLD_GROWTH_LOOP_PILOT_USER_IDS = "00000000-0000-0000-0000-000000000000"
+# User-authorized GLM plan priority, with independent provider fallback.
+ZHIPU_ENABLED = "true"
+ZHIPU_API_MODE = "coding-plan"
+ZHIPU_API_BASE = "https://open.bigmodel.cn/api/coding/paas/v4"
+ZHIPU_MODEL = "glm-5.3-flash"
+ZHIPU_MODEL_STRONG = "glm-5.3"
+# Explicit vision opt-in for the extension's screenshot locate fallback and
+# media content kits. Must be re-verified live when the endpoint or model
+# changes; video parts stay off (no ZHIPU_VIDEO).
+ZHIPU_VISION_MODEL = "glm-5.3-flash"
+ZHIPU_PRIORITY_EXPIRES_AT = "2026-10-07T00:00:00+08:00"
+# Conservative list-price estimates; gateway billing remains authoritative.
+LLM_PRICING_USD_PER_1M = '''{"gemini-3.8-flash":{"input":0.75,"output":3.75},"claude-sonnet-5":{"input":2,"output":10},"deepseek-v4-flash":{"input":0.44,"output":1.32}}'''
+FINFOLD_DEPLOYMENT_ENV = "production"
+# User-authorized role routing; existing paid-plan gates and write confirmations apply.
+AGENT_SUBAGENTS_ENABLED = "true"
+# Durable generation queue ENABLED (required). Synchronous streaming for
+# multi-platform generation exceeds the Worker CPU/memory limit (Cloudflare
+# Error 1102) and causes partial platform failures under resource pressure.
+# The queue runs generation in an isolated consumer with retries, keeping the
+# user's enqueue request lightweight. Front-end UX gaps (opaque waiting, no
+# timeout, trace leak, dual spinners) are covered by: 4-min recovery timeout,
+# partial-success toast, removed Trace display, !isLoading run-section guard.
+GENERATION_EXECUTION_MODE = "queue"
+GENERATION_QUEUE_NAME = "finfold-generation-jobs"
+GENERATION_DLQ_NAME = "finfold-generation-jobs-dlq"
+# X OAuth is live: the provider app (Finfold, Read+write, confidential client)
+# is approved and both Worker secrets are configured. Connections granted
+# before tweet.write was added must be reauthorized.
+X_OAUTH_ENABLED = "true"
+# X content pipeline (migration 110): generation/review run through the
+# operations UI; X_PUBLISHING_ENABLED only gates the every-minute dispatcher
+# that posts approved x_publication_jobs. The X account is connected with
+# tweet.write; the dispatcher is live — flip to "false" to pause publishing.
+X_PIPELINE_ENABLED = "true"
+X_PUBLISHING_ENABLED = "true"
+# 日更流水线 (daily content pipeline, migration 120): kill switch + pilot
+# whitelist, mirroring the growth-loop pattern. Publishing always stops at
+# the WeChat draft box — the human clicks 群发. Requires the WeChat component
+# flags above to be on for the draft dispatcher to run.
+CONTENT_PIPELINE_ENABLED = "true"
+CONTENT_PIPELINE_PILOT_MODE = "whitelist"
+CONTENT_PIPELINE_PILOT_USER_IDS = "00000000-0000-0000-0000-000000000000"
+# Jev (TypeSafe System One) decision layer for the pipeline's "jev_guarded"
+# review mode + reply triage. The API key is a Worker secret (JEV_API_KEY,
+# `npx wrangler secret put JEV_API_KEY`). Disabled => jev_guarded degrades
+# to every_post (human review) and triage passes all targets through.
+JEV_ENABLED = "true"
+# LinkedIn Community Management company-Page discovery, posts, and organic
+# performance. The member-feed read permission is closed to new applicants;
+# Finfold requests no member-post or publishing scope.
+LINKEDIN_OAUTH_ENABLED = "false"
+LINKEDIN_API_VERSION = "202608"
+# Instagram professional-account read-only OAuth. Keep disabled until Meta App
+# Review grants Advanced Access for basic identity and Insights permissions.
+# INSTAGRAM_OAUTH_CLIENT_ID / INSTAGRAM_OAUTH_CLIENT_SECRET remain Worker secrets.
+INSTAGRAM_OAUTH_ENABLED = "false"
+INSTAGRAM_GRAPH_API_VERSION = "v23.0"
+# WeChat Official Account third-party authorization and aggregate user-data
+# synchronization. The Open Platform component qualification is active; three
+# of the four server-only credentials are already Worker secrets
+# (APP_ID / TOKEN / ENCODING_AES_KEY). Put WECHAT_COMPONENT_APP_SECRET before
+# the next deploy — the [secrets] gate intentionally blocks until then. After
+# deploy, configure the component event URL in the Open Platform console and
+# wait for component_verify_ticket pushes; authorization stays fail-closed
+# until a fresh ticket arrives.
+WECHAT_COMPONENT_ENABLED = "true"
+# Draft publishing is a separate gate: flip to "true" (and redeploy) only after
+# the component callback receives tickets and a certified account completes
+# authorization with the draft permission set. It enables the every-minute
+# dispatcher that pushes approved wechat_publication_jobs into the draft box.
+WECHAT_DRAFT_PUBLISHING_ENABLED = "false"
+# Formal publishing (群发) stays off permanently: the pipeline's terminal state
+# is the draft box, and the human clicks 群发 in the Official Account console.
+# Enabling would additionally require verified fixed-IP egress.
+WECHAT_FORMAL_PUBLISHING_ENABLED = "false"
+NEXT_PUBLIC_SUPABASE_URL = "https://your-project-ref.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_your_project_anon_key"
+NEXT_PUBLIC_APP_URL = "https://www.finfold.app"
+FINFOLD_MCP_RESOURCE_URL = "https://www.finfold.app/mcp"
+FINFOLD_MCP_OAUTH_ISSUER = "https://your-project-ref.supabase.co/auth/v1"
+FINFOLD_MCP_OAUTH_JWKS_URI = "https://your-project-ref.supabase.co/auth/v1/.well-known/jwks.json"
+# Public PostHog project key is injected at build time so browser analytics can
+# initialize. The project key is intentionally client-visible; personal data,
+# source text, generated content, and arbitrary query parameters remain out of
+# the analytics contract.
+NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com"
+NEXT_PUBLIC_POSTHOG_KEY = "phc_your_posthog_project_key"
+# Public Turnstile widget key for the hostname-restricted Finfold Production
+# widget. The paired secret remains an encrypted Worker secret.
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "0x4AAAAAAA_your_turnstile_site_key"
+# Direct-LLM provider chain (lib/llm-providers.ts): the general DashScope
+# endpoint consumes the new Qwen3.8-Flash free pool first, then the independent
+# Qwen3.7 dated-snapshot pool. AllocationQuota.FreeTierOnly is a non-retryable
+# 403, so failover moves on without charging the general endpoint. DeepSeek is
+# the cross-vendor text-only backup; the purchased Qwen workspace route stays
+# last as the independent visual fallback, hard-capped by monthlyBudgetCny
+# (10 CNY per calendar month) through lib/llm-budget.ts.
+# keyEnv names reference Worker Secrets; actual keys are never inlined here.
+# Signal discovery: all eligible accounts, billed per call to the user's plan
+# Credits (ACTION_CREDITS.signalDiscoverySearch/Analysis); migration 109 required.
+SIGNAL_DISCOVERY_ENABLED = "true"
+SIGNAL_DISCOVERY_USER_IDS = ""
+SIGNAL_DISCOVERY_PROVIDER_NAMES = "qwen-free-latest,qwen-free-snapshot"
+LLM_PROVIDERS = '''[
+  {"name":"qwen-free-latest","base":"https://dashscope.aliyuncs.com/compatible-mode/v1","keyEnv":"DASHSCOPE_FREE_API_KEY",
+   "models":{"haiku":"qwen3.8-flash","sonnet":"qwen3.8-flash","opus":"qwen3.8-flash","vision":"qwen3.8-flash"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object"},
+  {"name":"qwen-free-snapshot","base":"https://dashscope.aliyuncs.com/compatible-mode/v1","keyEnv":"DASHSCOPE_FREE_API_KEY",
+   "models":{"haiku":"qwen3.7-flash-2026-07-15","sonnet":"qwen3.7-flash-2026-07-15","opus":"qwen3.7-flash-2026-07-15","vision":"qwen3.7-flash-2026-07-15"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object"},
+  {"name":"deepseek","base":"https://api.deepseek.com","keyEnv":"DEEPSEEK_API_KEY",
+   "models":{"haiku":"deepseek-v4-flash","sonnet":"deepseek-v4-pro","opus":"deepseek-v4-pro"},
+   "jsonMode":"object"},
+  {"name":"qwen-token-plan","base":"https://your-dashscope-workspace.example.com/compatible-mode/v1","keyEnv":"DASHSCOPE_API_KEY",
+   "models":{"haiku":"qwen3.8-flash","sonnet":"qwen3.8-flash","opus":"qwen3.8-flash","vision":"qwen3.8-flash"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object","monthlyBudgetCny":10}
+]'''
+# DeepSeek flash serves free/Starter/Creator. Growth and Digital Employee map
+# to v4-pro so paid Agent orchestration gets the stronger reasoning tier. The
+# Qwen3.8 and the dated Qwen3.7 snapshot both accept text, image, and video.
+# Media requests therefore keep three Qwen routes (two free-pool model IDs
+# plus the purchased workspace); ZHIPU_VISION_MODEL=glm-5.3-flash fronts that
+# chain during the priority window and fails over to the Qwen routes if the
+# plan endpoint rejects image_url parts.
+# AI generation routes through Letta agents (per-user + a shared trial/fallback
+# agent) as the final fallback below the direct-LLM chain above. Letta has NO
+# agent-less /chat/completions endpoint, so we do NOT point LLM_API_BASE at
+# api.letta.com — that produced the `429 {"reasons":["agent-not-found"]}`
+# failures.
+LETTA_API_URL = "https://api.letta.com"
+# Must be a valid Letta model handle (GET /v1/models). The old
+# "openai-proxy/gpt-4.1-mini" was NOT a real handle and made agent
+# creation fail with `NOT_FOUND: Handle ... not found`.
+#
+# IMPORTANT (2026-07-21 incident): openai/*, anthropic/*, google_ai/* handles
+# are "per-inference" tier — they bill against Letta credit balance. With a
+# $0 balance every message send fails and generation returns "Letta agent
+# returned no usable platform outputs." Only the letta/* handles are on the
+# free "letta-tier": letta/auto, letta/auto-chat, letta/auto-fast,
+# letta/auto-memory. To use per-inference models again, top up
+# credits (or BYOK) in the Letta dashboard first.
+LETTA_MODEL = "letta/auto"
+LETTA_EMBEDDING = "openai/text-embedding-3-small"
+# Stronger model for multi-platform structured generation (better JSON
+# adherence across all requested platforms). Must be a valid Letta handle.
+# Currently letta/auto (free letta-tier) — was anthropic/claude-haiku-4-5,
+# which silently died once the credit balance hit $0 (see note above).
+LETTA_GENERATION_MODEL = "letta/auto"
+# Deployed environments intentionally omit the legacy single-provider vars.
+# Agent chat and kit generation use the ordered Qwen/DeepSeek chain above;
+# local integrations can still use LLM_API_BASE/KEY/MODEL from .env.
+# Model tier overrides for paid plans (lib/payment/types.ts PLAN_MODEL_TIER:
+# Growth=sonnet, Digital Employee=opus). TODO before Growth/Employee go on
+# sale: verify these are valid Letta handles via GET /v1/models and set them
+# here — until set, both tiers silently fall back to LETTA_GENERATION_MODEL
+# (haiku), so Growth/Employee customers get haiku-quality output without this.
+# LETTA_GENERATION_MODEL_SONNET = ""
+# LETTA_GENERATION_MODEL_OPUS = ""
+# Purpose-aware image routing (lib/image-providers.ts): manual covers reserve
+# Qwen Pro quota and use Klein 9B / paid Qwen Pro; brand-reference covers use
+# Wan Pro; batch illustrations use Qwen Standard / Klein 4B. Paid Pro stays at
+# the native ~1 MP social size, while Standard/Wan use 2K where price permits.
+IMAGE_DASHSCOPE_FREE_API_BASE = "https://dashscope.aliyuncs.com"
+IMAGE_DASHSCOPE_FREE_PRO_MODEL = "qwen-image-3.0-pro"
+IMAGE_DASHSCOPE_FREE_MODEL = "qwen-image-3.0"
+IMAGE_DASHSCOPE_API_BASE = "https://your-dashscope-workspace.example.com"
+IMAGE_DASHSCOPE_QWEN_PRO_MODEL = "qwen-image-3.0-pro"
+IMAGE_DASHSCOPE_QWEN_MODEL = "qwen-image-3.0"
+IMAGE_DASHSCOPE_WAN_PRO_MODEL = "wan2.7-image-pro"
+IMAGE_DASHSCOPE_MODEL = "wan2.7-image"
+IMAGE_DASHSCOPE_THINKING = "true"
+# CLOUDFLARE_ACCOUNT_ID is not secret (it's a public
+# identifier); CLOUDFLARE_AI_TOKEN is a CF Secret (Workers AI Read + Edit
+# permissions). WORKERS_AI_DAILY_NEURON_BUDGET caps daily spend below
+# Cloudflare's 10,000 free Neurons/day (shared with text generation) —
+# lib/workers-ai-budget.ts skips Workers AI once the budget is spent, so this
+# provider NEVER produces a billed overage.
+CLOUDFLARE_ACCOUNT_ID = "your-cloudflare-account-id"
+SOURCE_IMAGE_BROWSER_FALLBACK_ENABLED = "false"
+SOURCE_IMAGE_SEARCH_ENABLED = "true"
+IMAGE_WORKERS_AI_COVER_MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
+IMAGE_WORKERS_AI_MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
+WORKERS_AI_DAILY_NEURON_BUDGET = "9000"
+# Image generation via Agnes AI (OpenAI-compatible /v1/images/generations)
+IMAGE_API_BASE = "https://apihub.agnes-ai.com"
+IMAGE_MODEL = "agnes-image-2.1-flash"
+ALLOW_MOCK = "false"
+# Creem Pricing V2 product IDs (NOT secret — these appear in public payment
+# URLs). CN selects Chinese checkout copy; Global selects English checkout
+# copy. Creem settles both product sets in USD.
+# The API key + webhook secret are set as CF Secrets, never committed here.
+BILLING_CN_STARTER_PRICE_ID = "prod_YOUR_CN_STARTER_PRICE_ID"
+BILLING_CN_CREATOR_PRICE_ID = "prod_YOUR_CN_CREATOR_PRICE_ID"
+BILLING_CN_GROWTH_PRICE_ID = "prod_YOUR_CN_GROWTH_PRICE_ID"
+BILLING_CN_DIGITAL_EMPLOYEE_PRICE_ID = "prod_YOUR_CN_DIGITAL_EMPLOYEE_PRICE_ID"
+BILLING_GLOBAL_STARTER_PRICE_ID = "prod_YOUR_GLOBAL_STARTER_PRICE_ID"
+BILLING_GLOBAL_CREATOR_PRICE_ID = "prod_YOUR_GLOBAL_CREATOR_PRICE_ID"
+BILLING_GLOBAL_GROWTH_PRICE_ID = "prod_YOUR_GLOBAL_GROWTH_PRICE_ID"
+BILLING_GLOBAL_DIGITAL_EMPLOYEE_PRICE_ID = "prod_YOUR_GLOBAL_DIGITAL_EMPLOYEE_PRICE_ID"
+
+# Alipay 经营码 (transitional CN payment channel before Finfold.cn ICP filing).
+# Semi-manual reconcile: user pays a static receive QR for a precise amount;
+# operator confirms in /admin/reconcile → grant_purchase_credits / grantQrcodePlan.
+NEXT_PUBLIC_ALIPAY_QRCODE_IMAGE_URL = "https://your-project-ref.supabase.co/storage/v1/object/public/public-assets/finfold-alipay-qrcode.png"
+NEXT_PUBLIC_ALIPAY_QRCODE_PAYEE_NAME = "Finfold"
+# ADMIN_USER_IDS is server-only and declared in [secrets] above. Never commit
+# the allow-list value or expose it through a NEXT_PUBLIC_ variable.

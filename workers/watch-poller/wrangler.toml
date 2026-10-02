@@ -1,0 +1,56 @@
+name = "finfold-watch-poller"
+main = "index.ts"
+compatibility_date = "2026-07-29"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
+
+[secrets]
+# This name-only declaration improves type generation and local-dev warnings.
+# Deploy through an npm script so the remote secret inventory is verified
+# before upload.
+required = [
+  "CRON_WATCH_SECRET",
+  "CRON_PERF_SECRET",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY"
+]
+
+# This SEPARATE, minimal Worker keeps scheduled failures and releases isolated
+# from the interactive app. Its only job is to wake up on a schedule and call
+# back into the main Next.js app's API, which holds all the actual logic. Three
+# schedules dispatch seven jobs (see index.ts's scheduled() dispatch). The combined
+# hourly schedule preserves the existing UTC cadences with a small operational
+# surface. Workers Paid supports substantially more schedules; this grouping
+# is a design choice, not a Free-plan workaround:
+#   0,15 * * * * -> at 00 minutes every 6h: update monitoring
+#                -> Monday 04:00: negative-learning distillation
+#                -> daily 02:00/10:00/18:00: staging readiness
+#                -> daily 01:15: Agent duty-queue refresh
+#                -> daily 01:00: public demand-signal refresh
+#   30 */3 * * * -> POST /api/performance/poll (Reddit/HN/PH auto metrics)
+#   30 * * * *   -> Opportunity Radar sync at the other half-hour; the hourly
+#                    half runs from the existing 0-minute multiplexed trigger
+# Deploy with:
+#   cd workers/watch-poller && wrangler deploy
+# and set the secrets below with `wrangler secret put <NAME>`.
+[triggers]
+crons = ["0,15 * * * *", "30 * * * *", "30 */3 * * *"]
+
+[vars]
+# The finfold.app deployment to call back into.
+FINFOLD_APP_URL = "https://www.finfold.app"
+# Public staging URLs and the publishable anon key are intentionally plain
+# vars: browser clients receive the same values. RLS remains the data boundary.
+FINFOLD_STAGING_URL = "https://your-staging-worker.your-name.workers.dev"
+STAGING_SUPABASE_URL = "https://your-staging-project-ref.supabase.co"
+STAGING_SUPABASE_ANON_KEY = "sb_publishable_your_staging_anon_key"

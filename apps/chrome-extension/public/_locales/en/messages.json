@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Finfold — Social Drafts"
+  },
+  "extensionDescription": {
+    "message": "Create social posts from chosen pages. Private pilot: draft LinkedIn and RED comment replies for manual sending."
+  },
+  "actionTitle": {
+    "message": "Open Finfold"
+  }
+}

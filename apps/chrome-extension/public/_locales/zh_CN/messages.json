@@ -1,0 +1,11 @@
+{
+  "extensionName": {
+    "message": "Finfold — 社交创作助手"
+  },
+  "extensionDescription": {
+    "message": "把选中的网页转成社交帖子；小范围试用：生成小红书和 LinkedIn 评论回复草稿，由你审阅发送。"
+  },
+  "actionTitle": {
+    "message": "打开 Finfold"
+  }
+}

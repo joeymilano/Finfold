@@ -1,0 +1,39 @@
+{
+  "pages": [
+    "pages/radar/index",
+    "pages/radar/detail",
+    "pages/draft/index",
+    "pages/me/index"
+  ],
+  "subpackages": [
+    {
+      "root": "skills/agent",
+      "pages": ["receiver/receiver"],
+      "independent": true
+    }
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#0B0A08",
+    "navigationBarTitleText": "增长搭子",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#0B0A08",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#8A8375",
+    "selectedColor": "#D9A441",
+    "backgroundColor": "#0F0D0A",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/radar/index", "text": "今日机会" },
+      { "pagePath": "pages/draft/index", "text": "写内容" },
+      { "pagePath": "pages/me/index", "text": "我的" }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "usingComponents": {
+    "score-ring": "/components/score-ring/index"
+  },
+  "sitemapLocation": "sitemap.json"
+}

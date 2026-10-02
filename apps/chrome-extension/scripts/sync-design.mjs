@@ -1,0 +1,13 @@
+import { readFile, writeFile, copyFile, mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
+const root = resolve(import.meta.dirname, '../../..');
+const source = await readFile(resolve(root, 'app/globals.css'), 'utf8');
+const start = source.indexOf(':root,\n[data-theme="light"]');
+const end = source.indexOf('\n* {', start);
+if (start < 0 || end < 0 || !source.slice(start, end).includes('[data-theme="dark"]')) throw new Error('Finfold App theme tokens could not be found');
+await writeFile(resolve(root, 'apps/chrome-extension/src/app-tokens.css'), '/* Generated from app/globals.css by scripts/sync-design.mjs. */\n' + source.slice(start, end).trimEnd() + '\n');
+const assets = resolve(root, 'apps/chrome-extension/src/assets');
+await mkdir(assets, {recursive:true});
+for (const theme of ['light','dark']) await copyFile(resolve(root, `public/brand/app-icon-${theme}-256.webp`), resolve(assets, `app-icon-${theme}.webp`));
+await copyFile(resolve(root, 'node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2'), resolve(assets, 'geist-sans.woff2'));
+await copyFile(resolve(root, 'node_modules/geist/LICENSE.txt'), resolve(assets, 'Geist-LICENSE.txt'));

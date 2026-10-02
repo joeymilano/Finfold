@@ -1,0 +1,172 @@
+name = "finfold-app-staging"
+main = "worker.ts"
+compatibility_date = "2026-07-29"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[assets]
+directory = ".open-next/assets"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
+[observability.traces]
+enabled = true
+head_sampling_rate = 0.05
+
+[secrets]
+# Backend credentials remain staging-only; the remote readiness gate verifies
+# names without reading values.
+# The remote readiness gate verifies names without reading values.
+required = [
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "TURNSTILE_SECRET_KEY",
+  "INTEGRATION_ENCRYPTION_KEY",
+  "CRON_WATCH_SECRET",
+  "CRON_PERF_SECRET",
+  "CREEM_WEBHOOK_SECRET",
+  "LETTA_API_KEY",
+  "DASHSCOPE_FREE_API_KEY",
+  "DASHSCOPE_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "IMAGE_API_KEY",
+  "CLOUDFLARE_AI_TOKEN",
+  "CREEM_API_KEY",
+  "ADMIN_USER_IDS",
+  "GENERATION_WORKER_SECRET",
+  "MISSIONGET_WEBHOOK_SECRET",
+  "MISSIONGET_PARTNER_USER_ID",
+  "ZCWPAY_PID",
+  "ZCWPAY_MERCHANT_PRIVATE_KEY",
+  "ZCWPAY_PLATFORM_PUBLIC_KEY"
+]
+
+[[queues.producers]]
+binding = "GENERATION_QUEUE"
+queue = "finfold-staging-generation-jobs"
+
+[[queues.consumers]]
+queue = "finfold-staging-generation-jobs"
+max_batch_size = 1
+max_batch_timeout = 1
+max_retries = 4
+retry_delay = 30
+dead_letter_queue = "finfold-staging-generation-jobs-dlq"
+max_concurrency = 1
+
+[[queues.consumers]]
+queue = "finfold-staging-generation-jobs-dlq"
+max_batch_size = 1
+max_batch_timeout = 1
+max_retries = 2
+retry_delay = 300
+max_concurrency = 1
+
+# Deliberately no Cron-trigger configuration. Scheduled availability checks
+# stay in the isolated finfold-watch-poller so web releases do not change the
+# Staging schedule or duplicate operational ownership.
+
+[vars]
+# Chrome extension rollout gates. Enable only after migration and pilot verification.
+FINFOLD_EXTENSION_REPLY_DRAFTS_ENABLED = "false"
+FINFOLD_EXTENSION_REPLY_PILOT_USER_IDS = ""
+FINFOLD_EXTENSION_AUTH_ENABLED = "false"
+FINFOLD_EXTENSION_PAID_ACTIONS_ENABLED = "false"
+FINFOLD_EXTENSION_ANONYMOUS_ENABLED = "false"
+FINFOLD_EXTENSION_ANONYMOUS_DAILY_LIMIT = "10"
+FINFOLD_EXTENSION_ANONYMOUS_IP_ATTEMPTS = "3"
+FINFOLD_EXTENSION_ORIGINS = ""
+# Event grant expired; explicitly disabled.
+# User-authorized GLM plan priority, with independent provider fallback.
+ZHIPU_ENABLED = "false"
+ZHIPU_API_MODE = "coding-plan"
+ZHIPU_API_BASE = "https://open.bigmodel.cn/api/coding/paas/v4"
+ZHIPU_MODEL = "glm-5.3-flash"
+ZHIPU_MODEL_STRONG = "glm-5.3"
+ZHIPU_PRIORITY_EXPIRES_AT = "2026-10-07T00:00:00+08:00"
+# Conservative list-price estimates; gateway billing remains authoritative.
+LLM_PRICING_USD_PER_1M = '''{"gemini-3.8-flash":{"input":0.75,"output":3.75},"claude-sonnet-5":{"input":2,"output":10},"deepseek-v4-flash":{"input":0.44,"output":1.32}}'''
+FINFOLD_DEPLOYMENT_ENV = "staging"
+# Subagent collaboration shares the user-authorized role routing with production;
+# existing paid-plan gates and write confirmations still apply.
+AGENT_SUBAGENTS_ENABLED = "true"
+# Durable generation queue ENABLED (matches production — required to avoid
+# Worker resource limits on multi-platform generation). See wrangler.toml.
+GENERATION_EXECUTION_MODE = "queue"
+GENERATION_QUEUE_NAME = "finfold-staging-generation-jobs"
+GENERATION_DLQ_NAME = "finfold-staging-generation-jobs-dlq"
+# Enable only after staging has isolated X OAuth credentials and an approved
+# callback URL. Client credentials stay Worker secrets, not committed vars.
+X_OAUTH_ENABLED = "false"
+# 日更流水线 stays off until staging verifies migration 120 + the WeChat
+# component flags; staging runs no crons, so this only gates the routes.
+CONTENT_PIPELINE_ENABLED = "false"
+CONTENT_PIPELINE_PILOT_MODE = "whitelist"
+CONTENT_PIPELINE_PILOT_USER_IDS = ""
+# LinkedIn Community Management company-Page read-only pilot. Enable only after
+# staging has isolated credentials, an approved callback, and real Page roles.
+LINKEDIN_OAUTH_ENABLED = "false"
+LINKEDIN_API_VERSION = "202608"
+# Instagram professional-account read-only pilot; credentials stay secrets and
+# the flag stays off until the staging callback and Meta permissions are ready.
+INSTAGRAM_OAUTH_ENABLED = "false"
+INSTAGRAM_GRAPH_API_VERSION = "v23.0"
+# Keep fail-closed until an isolated staging component or approved test account
+# is configured and its encrypted component ticket callback is healthy.
+WECHAT_COMPONENT_ENABLED = "false"
+WECHAT_DRAFT_PUBLISHING_ENABLED = "false"
+WECHAT_FORMAL_PUBLISHING_ENABLED = "false"
+NEXT_PUBLIC_SUPABASE_URL = "https://your-staging-project-ref.supabase.co"
+NEXT_PUBLIC_SUPABASE_ANON_KEY = "sb_publishable_your_staging_anon_key"
+NEXT_PUBLIC_APP_URL = "https://staging.finfold.app"
+FINFOLD_MCP_RESOURCE_URL = "https://staging.finfold.app/mcp"
+FINFOLD_MCP_OAUTH_ISSUER = "https://your-staging-project-ref.supabase.co/auth/v1"
+FINFOLD_MCP_OAUTH_JWKS_URI = "https://your-staging-project-ref.supabase.co/auth/v1/.well-known/jwks.json"
+# Official Cloudflare always-pass dummy sitekey for Playwright/staging only.
+NEXT_PUBLIC_TURNSTILE_SITE_KEY = "1x00000000000000000000AA"
+LLM_PROVIDERS = '''[
+  {"name":"qwen-free-latest","base":"https://dashscope.aliyuncs.com/compatible-mode/v1","keyEnv":"DASHSCOPE_FREE_API_KEY",
+   "models":{"haiku":"qwen3.8-flash","sonnet":"qwen3.8-flash","opus":"qwen3.8-flash","vision":"qwen3.8-flash"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object"},
+  {"name":"qwen-free-snapshot","base":"https://dashscope.aliyuncs.com/compatible-mode/v1","keyEnv":"DASHSCOPE_FREE_API_KEY",
+   "models":{"haiku":"qwen3.7-flash-2026-07-15","sonnet":"qwen3.7-flash-2026-07-15","opus":"qwen3.7-flash-2026-07-15","vision":"qwen3.7-flash-2026-07-15"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object"},
+  {"name":"deepseek","base":"https://api.deepseek.com","keyEnv":"DEEPSEEK_API_KEY",
+   "models":{"haiku":"deepseek-v4-flash","sonnet":"deepseek-v4-pro","opus":"deepseek-v4-pro"},
+   "jsonMode":"object"},
+  {"name":"qwen-token-plan","base":"https://your-dashscope-workspace.example.com/compatible-mode/v1","keyEnv":"DASHSCOPE_API_KEY",
+   "models":{"haiku":"qwen3.8-flash","sonnet":"qwen3.8-flash","opus":"qwen3.8-flash","vision":"qwen3.8-flash"},
+   "supportsVideo":true,"enableThinking":false,"jsonMode":"object","monthlyBudgetCny":10}
+]'''
+LETTA_API_URL = "https://api.letta.com"
+LETTA_MODEL = "letta/auto"
+LETTA_EMBEDDING = "openai/text-embedding-3-small"
+LETTA_GENERATION_MODEL = "letta/auto"
+IMAGE_DASHSCOPE_FREE_API_BASE = "https://dashscope.aliyuncs.com"
+IMAGE_DASHSCOPE_FREE_PRO_MODEL = "qwen-image-3.0-pro"
+IMAGE_DASHSCOPE_FREE_MODEL = "qwen-image-3.0"
+IMAGE_DASHSCOPE_API_BASE = "https://your-dashscope-workspace.example.com"
+IMAGE_DASHSCOPE_QWEN_PRO_MODEL = "qwen-image-3.0-pro"
+IMAGE_DASHSCOPE_QWEN_MODEL = "qwen-image-3.0"
+IMAGE_DASHSCOPE_WAN_PRO_MODEL = "wan2.7-image-pro"
+IMAGE_DASHSCOPE_MODEL = "wan2.7-image"
+IMAGE_DASHSCOPE_THINKING = "true"
+CLOUDFLARE_ACCOUNT_ID = "your-cloudflare-account-id"
+SOURCE_IMAGE_BROWSER_FALLBACK_ENABLED = "false"
+SOURCE_IMAGE_SEARCH_ENABLED = "true"
+IMAGE_WORKERS_AI_COVER_MODEL = "@cf/black-forest-labs/flux-2-klein-9b"
+IMAGE_WORKERS_AI_MODEL = "@cf/black-forest-labs/flux-2-klein-4b"
+WORKERS_AI_DAILY_NEURON_BUDGET = "9000"
+IMAGE_API_BASE = "https://apihub.agnes-ai.com"
+IMAGE_MODEL = "agnes-image-2.1-flash"
+ALLOW_MOCK = "false"
+# Creem Test Mode product IDs. These are public catalog identifiers; the
+# staging-only API key and webhook secret remain Worker secrets.
+BILLING_CN_GROWTH_PRICE_ID = "prod_2ycPcjrTfJsoQwrjpcqsEB"
+BILLING_GLOBAL_GROWTH_PRICE_ID = "prod_5X8ZpYYAL9N8SVfEZhU6Pk"

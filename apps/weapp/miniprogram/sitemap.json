@@ -1,0 +1,13 @@
+{
+  "desc": "增长搭子小程序页面收录配置",
+  "rules": [
+    {
+      "action": "allow",
+      "page": "pages/radar/index"
+    },
+    {
+      "action": "disallow",
+      "page": "pages/me/index"
+    }
+  ]
+}

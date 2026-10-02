@@ -1,0 +1,23 @@
+# /etc/systemd/system/finfold-web.service
+# Finfold 国内站 Web 进程（www.finfold.cn）。安装方式见 docs/deploy-cn.md。
+[Unit]
+Description=Finfold CN web server (Next.js)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=finfold
+Group=finfold
+WorkingDirectory=/opt/finfold
+EnvironmentFile=/opt/finfold/.env.cn
+Environment=NODE_ENV=production
+Environment=PORT=3000
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+# next start 内存上限按服务器规格调整（示例 4G 机器给 2.5G）。
+MemoryMax=2560M
+
+[Install]
+WantedBy=multi-user.target

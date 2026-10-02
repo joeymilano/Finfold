@@ -1,0 +1,56 @@
+<view class="page-pad">
+  <!-- 额度：仪式卡 -->
+  <view class="card me-credits">
+    <view class="me-credits-label">剩余生成额度</view>
+    <view class="me-credits-num font-display">{{creditsText}}<text class="me-credits-unit">点</text></view>
+    <view class="faint me-credits-note">
+      <view>每篇草稿 3 点 · 注册已赠 200 点</view>
+      <view>用完可在电脑访问 finfold.app 充值</view>
+    </view>
+  </view>
+
+  <!-- 业务画像 -->
+  <view class="eyebrow"><text class="eyebrow-num">01</text><text>业务画像 · 决定机会匹配度</text><view class="eyebrow-line"></view></view>
+  <view class="card">
+    <textarea
+      class="textarea"
+      placeholder="一句话说清你的业务：做什么、卖给谁"
+      placeholder-class="ph"
+      maxlength="160"
+      value="{{business}}"
+      bindinput="onBusinessInput"
+    ></textarea>
+    <textarea
+      class="textarea me-audience"
+      placeholder="目标读者（可选）：他们关心什么、在什么场景会用你"
+      placeholder-class="ph"
+      maxlength="160"
+      value="{{audience}}"
+      bindinput="onAudienceInput"
+    ></textarea>
+    <input
+      class="input me-keywords"
+      placeholder="关注领域，逗号分隔"
+      placeholder-class="ph"
+      maxlength="120"
+      value="{{keywordsText}}"
+      bindinput="onKeywordsInput"
+    />
+    <view class="eyebrow me-platform-eyebrow"><text>主要发布平台</text><view class="eyebrow-line"></view></view>
+    <view class="chip-row">
+      <view class="chip {{platform === 'wechat' ? 'chip-active' : ''}}" data-platform="wechat" bindtap="onPlatformChip">公众号</view>
+      <view class="chip {{platform === 'xiaohongshu' ? 'chip-active' : ''}}" data-platform="xiaohongshu" bindtap="onPlatformChip">小红书</view>
+      <view class="chip {{platform === 'moments' ? 'chip-active' : ''}}" data-platform="moments" bindtap="onPlatformChip">朋友圈</view>
+    </view>
+    <button class="btn btn-primary me-save {{saving ? 'btn-disabled' : ''}}" bindtap="saveProfile" loading="{{saving}}">保存画像</button>
+  </view>
+
+  <!-- 关于 -->
+  <view class="eyebrow"><text class="eyebrow-num">02</text><text>关于</text><view class="eyebrow-line"></view></view>
+  <view class="card card-raised">
+    <view class="me-about-title font-display">增长搭子 · Finfold 出品</view>
+    <view class="faint me-about-line">AI 盯全网信号挑选题，你拍板，AI 成稿，每一步都经你确认。</view>
+    <view class="faint me-about-line">生成内容均由 AI 产生并已标注，发布前请人工核对事实。</view>
+    <view class="faint me-about-line">完整版在电脑端 · finfold.app</view>
+  </view>
+</view>
