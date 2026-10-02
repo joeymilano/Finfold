@@ -1,0 +1,26 @@
+# gitleaks configuration for Finfold.
+#
+# Uses the full default rule set plus a narrow path allowlist for files whose
+# high-entropy strings are intentionally public or synthetic:
+#
+#   - apps/chrome-extension/public/manifest.json contains the extension's
+#     published public key (also visible on the Chrome Web Store listing).
+#   - The listed test files use deterministic fake tokens, UUIDs, and a
+#     base64 test key ("0123456789abcdef..." pattern) as fixtures.
+#
+# Real credentials must never appear in any file; this allowlist only covers
+# the specific fixture/public-key paths above.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Published extension public key and deterministic test fixtures"
+paths = [
+    '''apps/chrome-extension/public/manifest\.json''',
+    '''test/mcp-generation-billing\.test\.ts''',
+    '''test/mission-attribution\.test\.ts''',
+    '''test/secret-encryption\.test\.ts''',
+    '''test/credit-reconciliation\.test\.ts''',
+    '''test/turnstile\.test\.ts''',
+]
